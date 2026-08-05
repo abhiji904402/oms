@@ -17,48 +17,69 @@ import {
 
 const APPS_SCRIPT_CODE = `// ===================================================
 // BROOMIES BAKERY – Google Apps Script
-// Outlet-wise sheets + Smart missing data sync
+// Multi-Outlet Separate Sheets + Master Sheet Auto-Routing
 // ===================================================
-
-var OUTLET_SHEET_MAP = {
-  "sector_31": "Sector 31",
-  "sector_42": "Sector 42",
-  "sector_35": "Sector 35",
-  "sector_88": "Sector 88"
-};
 
 function doPost(e) {
   try {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
     var contents = e.postData.contents;
     var data = JSON.parse(contents);
 
-    // Auto-create Header row if sheet is empty
-    if (sheet.getLastRow() === 0) {
-      sheet.appendRow([
-        "Order #", "Customer Name", "Phone", "Outlet", "Item Type", "Quantity/Weight",
-        "Informed By", "Delivery Type", "Delivery Date", "Time", "Total (₹)", "Advance (₹)",
-        "Remaining (₹)", "Payment Type", "Adv Bill No.", "Final Bill No.", "Status", "Cake Photo URL", "Remarks", "Last Updated"
-      ]);
-      sheet.getRange(1, 1, 1, 20).setFontWeight("bold").setBackground("#d9ead3");
-    }
-
-    // Check action: delete, create, update
     if (data && data.action === "delete") {
-      deleteOrder(sheet, data.order || data);
+      deleteOrderFromAllSheets(ss, data.order || data);
     } else if (Array.isArray(data)) {
-      data.forEach(function(order) { appendOrUpdateOrder(sheet, order); });
+      data.forEach(function(order) { syncOrderToSheets(ss, order); });
     } else if (data && data.order) {
-      appendOrUpdateOrder(sheet, data.order);
+      syncOrderToSheets(ss, data.order);
     } else if (data) {
-      appendOrUpdateOrder(sheet, data);
+      syncOrderToSheets(ss, data);
     }
 
-    return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "Order synced" }))
+    return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "Orders routed to outlet-specific sheets & master sheet" }))
       .setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", error: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function getOrCreateSheet(ss, sheetName) {
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+  }
+  // Auto-create Header row if sheet is empty
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow([
+      "Order #", "Customer Name", "Phone", "Outlet", "Item Type", "Quantity/Weight",
+      "Informed By", "Delivery Type", "Delivery Date", "Time", "Total (₹)", "Advance (₹)",
+      "Remaining (₹)", "Payment Type", "Adv Bill No.", "Final Bill No.", "Status", "Cake Photo URL", "Remarks", "Last Updated"
+    ]);
+    sheet.getRange(1, 1, 1, 20).setFontWeight("bold").setBackground("#d9ead3");
+  }
+  return sheet;
+}
+
+function syncOrderToSheets(ss, order) {
+  var outletName = order.outlet ? String(order.outlet).trim() : "Sector 31";
+
+  // 1. Sync to Master Sheet ("All Orders")
+  var masterSheet = getOrCreateSheet(ss, "All Orders");
+  appendOrUpdateOrder(masterSheet, order);
+
+  // 2. Sync to Outlet Sheet (e.g. "Sector 31", "Sector 35", "Sector 42", "Sector 88")
+  var outletSheet = getOrCreateSheet(ss, outletName);
+  appendOrUpdateOrder(outletSheet, order);
+
+  // 3. Clean up from other outlet tabs if order outlet was moved
+  var sheets = ss.getSheets();
+  var orderNum = order.order_number;
+  for (var i = 0; i < sheets.length; i++) {
+    var sName = sheets[i].getName();
+    if (sName !== "All Orders" && sName !== outletName) {
+      deleteOrderFromSheet(sheets[i], orderNum);
+    }
   }
 }
 
@@ -104,9 +125,8 @@ function appendOrUpdateOrder(sheet, order) {
   }
 }
 
-function deleteOrder(sheet, order) {
+function deleteOrderFromSheet(sheet, orderNum) {
   var rows = sheet.getDataRange().getValues();
-  var orderNum = typeof order === 'object' ? order.order_number : order;
   for (var i = 1; i < rows.length; i++) {
     if (rows[i][0] == orderNum) {
       sheet.deleteRow(i + 1);
@@ -115,8 +135,16 @@ function deleteOrder(sheet, order) {
   }
 }
 
+function deleteOrderFromAllSheets(ss, order) {
+  var sheets = ss.getSheets();
+  var orderNum = typeof order === 'object' ? order.order_number : order;
+  for (var s = 0; s < sheets.length; s++) {
+    deleteOrderFromSheet(sheets[s], orderNum);
+  }
+}
+
 function doGet(e) {
-  return ContentService.createTextOutput("Bakery OMS Live Google Sheets Sync Webhook Active!");
+  return ContentService.createTextOutput("Bakery OMS Multi-Outlet Google Sheets Sync Webhook Active!");
 }`;
 
 export const GoogleSheetsPage: React.FC = () => {
@@ -243,8 +271,11 @@ export const GoogleSheetsPage: React.FC = () => {
         </div>
 
         {/* Highlighted Step instruction */}
-        <div className="bg-purple-950/40 border border-purple-900/50 rounded-xl px-4 py-2 text-xs font-semibold text-purple-200">
-          Copy this code → Open Google Sheet → Extensions → Apps Script → Paste → Deploy as Web App
+        <div className="bg-purple-950/40 border border-purple-900/50 rounded-xl px-4 py-2 text-xs font-semibold text-purple-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+          <span>Copy this code → Open Google Sheet → Extensions → Apps Script → Paste → Deploy as Web App</span>
+          <span className="text-[11px] text-emerald-300 font-bold bg-emerald-950/80 px-2.5 py-1 rounded-md border border-emerald-800">
+            ✨ Auto-creates separate tabs for each Outlet!
+          </span>
         </div>
 
         {/* Scrollable Code Box */}
