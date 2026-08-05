@@ -1,47 +1,59 @@
 import { Order } from '../types';
+import { formatTo12Hour, getDeliveryTimeInfo } from './timeUtils';
 
 export function exportToCSV(orders: Order[], filename = 'broomies_orders.csv') {
   const headers = [
     'Order #',
     'Outlet',
-    'Date',
-    'Time',
+    'Order Date',
+    'Order Time',
+    'Delivery Date',
+    'Expected Delivery Time',
+    'Actual Delivery Time',
     'Customer Name',
     'Mobile',
     'Address',
     'Item Type',
     'Qty',
     'Type',
-    'Total ($)',
-    'Advance ($)',
-    'Remaining Balance ($)',
+    'Total (₹)',
+    'Advance (₹)',
+    'Remaining Balance (₹)',
     'Payment Status',
     'Order Status',
     'Delivery Partner',
+    'Delivered By',
     'Payment Changed By',
     'Payment Changed At'
   ];
 
-  const rows = orders.map((o) => [
-    o.order_number,
-    `"${o.outlet}"`,
-    `"${o.order_date}"`,
-    `"${o.order_time || ''}"`,
-    `"${o.customer_name}"`,
-    `"${o.mobile_number}"`,
-    `"${o.address || 'N/A'}"`,
-    `"${o.item_type.replace(/"/g, '""')}"`,
-    o.quantity,
-    o.delivery_type,
-    (o.total_amount || 0).toFixed(2),
-    (o.advance_amount || 0).toFixed(2),
-    (o.remaining_balance || 0).toFixed(2),
-    o.payment_type,
-    o.status,
-    `"${o.delivery_partner || 'Unassigned'}"`,
-    `"${o.payment_changed_by || 'System'}"`,
-    `"${o.payment_changed_at || ''}"`
-  ]);
+  const rows = orders.map((o) => {
+    const timeInfo = getDeliveryTimeInfo(o);
+    return [
+      o.order_number,
+      `"${o.outlet}"`,
+      `"${o.order_date}"`,
+      `"${formatTo12Hour(o.order_time) || ''}"`,
+      `"${o.delivery_date || ''}"`,
+      `"${timeInfo.expectedFormatted}"`,
+      `"${timeInfo.actualFormatted}"`,
+      `"${o.customer_name}"`,
+      `"${o.mobile_number}"`,
+      `"${(o.address || 'N/A').replace(/"/g, '""')}"`,
+      `"${o.item_type.replace(/"/g, '""')}"`,
+      o.quantity,
+      o.delivery_type,
+      (o.total_amount || 0).toFixed(2),
+      (o.advance_amount || 0).toFixed(2),
+      (o.remaining_balance || 0).toFixed(2),
+      o.payment_type,
+      o.status,
+      `"${o.delivery_partner || 'Unassigned'}"`,
+      `"${o.delivered_by || o.delivery_partner || 'N/A'}"`,
+      `"${o.payment_changed_by || 'System'}"`,
+      `"${o.payment_changed_at ? formatTo12Hour(o.payment_changed_at) : ''}"`
+    ];
+  });
 
   const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -67,24 +79,28 @@ export function printPDFReport(orders: Order[], title = 'Broomies Bakery - Order
 
   const rowsHtml = orders
     .map(
-      (o) => `
+      (o) => {
+        const timeInfo = getDeliveryTimeInfo(o);
+        return `
     <tr>
-      <td style="padding: 8px; border-bottom: 1px solid #ddd;">#${o.order_number}</td>
+      <td style="padding: 8px; border-bottom: 1px solid #ddd; font-weight: bold;">#${o.order_number}</td>
       <td style="padding: 8px; border-bottom: 1px solid #ddd;">${o.outlet}</td>
       <td style="padding: 8px; border-bottom: 1px solid #ddd;">${o.customer_name}<br/><small style="color:#666">${o.mobile_number}</small></td>
       <td style="padding: 8px; border-bottom: 1px solid #ddd;">${o.item_type} (x${o.quantity})</td>
-      <td style="padding: 8px; border-bottom: 1px solid #ddd;">$${(o.total_amount || 0).toFixed(2)}</td>
-      <td style="padding: 8px; border-bottom: 1px solid #ddd;">$${(o.advance_amount || 0).toFixed(2)}</td>
+      <td style="padding: 8px; border-bottom: 1px solid #ddd;">₹${(o.total_amount || 0).toFixed(2)}</td>
       <td style="padding: 8px; border-bottom: 1px solid #ddd;">
         <span style="font-weight:600; color: ${o.status === 'delivered' ? 'green' : o.status === 'cancelled' ? 'red' : 'orange'}">
           ${o.status.toUpperCase()}
         </span>
       </td>
+      <td style="padding: 8px; border-bottom: 1px solid #ddd; font-weight: 500;">${o.delivery_partner || '—'}</td>
+      <td style="padding: 8px; border-bottom: 1px solid #ddd;">${timeInfo.expectedFormatted}</td>
+      <td style="padding: 8px; border-bottom: 1px solid #ddd; font-weight: bold;">${timeInfo.actualFormatted}</td>
     </tr>
-  `
+  `;
+      }
     )
     .join('');
-
 
   const html = `
     <!DOCTYPE html>
@@ -100,7 +116,7 @@ export function printPDFReport(orders: Order[], title = 'Broomies Bakery - Order
           .stat { flex: 1; }
           .stat-label { font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 600; }
           .stat-value { font-size: 20px; font-weight: bold; margin-top: 4px; color: #0f172a; }
-          table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+          table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
           th { background: #0f172a; color: white; padding: 10px 8px; font-weight: 600; }
           @media print {
             body { padding: 0; }
@@ -127,15 +143,15 @@ export function printPDFReport(orders: Order[], title = 'Broomies Bakery - Order
           </div>
           <div class="stat">
             <div class="stat-label">Total Sales</div>
-            <div class="stat-value">$${(totalRevenue || 0).toFixed(2)}</div>
+            <div class="stat-value">₹${(totalRevenue || 0).toFixed(2)}</div>
           </div>
           <div class="stat">
             <div class="stat-label">Collected Amount</div>
-            <div class="stat-value" style="color: #16a34a;">$${(totalPaid || 0).toFixed(2)}</div>
+            <div class="stat-value" style="color: #16a34a;">₹${(totalPaid || 0).toFixed(2)}</div>
           </div>
           <div class="stat">
             <div class="stat-label">Due Balance</div>
-            <div class="stat-value" style="color: #dc2626;">$${(totalPending || 0).toFixed(2)}</div>
+            <div class="stat-value" style="color: #dc2626;">₹${(totalPending || 0).toFixed(2)}</div>
           </div>
         </div>
 
@@ -148,6 +164,9 @@ export function printPDFReport(orders: Order[], title = 'Broomies Bakery - Order
               <th>Items</th>
               <th>Total</th>
               <th>Status</th>
+              <th>Delivery Partner</th>
+              <th>Exp. Time</th>
+              <th>Actual Delivery Time</th>
             </tr>
           </thead>
           <tbody>

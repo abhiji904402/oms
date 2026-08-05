@@ -73,18 +73,69 @@ export function getExpectedTimestamp(order: Order): number {
 }
 
 /**
+ * Formats any time or date-time string into standard 12-Hour format (e.g., "06:30 PM")
+ */
+export function formatTo12Hour(timeStr?: string | null): string {
+  if (!timeStr) return '';
+  const str = timeStr.trim();
+  if (!str) return '';
+
+  // If already contains AM or PM (case insensitive), normalize format
+  if (/am|pm/i.test(str)) {
+    const match = str.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM|am|pm)$/i);
+    if (match) {
+      const h = parseInt(match[1], 10);
+      const m = match[2];
+      const ampm = match[3].toUpperCase();
+      const hStr = h < 10 ? `0${h}` : `${h}`;
+      return `${hStr}:${m} ${ampm}`;
+    }
+    return str.toUpperCase();
+  }
+
+  // Check if it's an ISO or full Date string
+  if (str.includes('T') || str.includes('Z')) {
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    }
+  }
+
+  // Match 24-hour HH:MM or HH:MM:SS format (e.g., "18:30" or "09:15:00")
+  const match24 = str.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (match24) {
+    let hours = parseInt(match24[1], 10);
+    const minutes = match24[2];
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    if (hours === 0) hours = 12;
+    const hStr = hours < 10 ? `0${hours}` : `${hours}`;
+    return `${hStr}:${minutes} ${ampm}`;
+  }
+
+  return str;
+}
+
+/**
+ * Returns current system time formatted in 12-hour AM/PM format (e.g., "10:30 AM")
+ */
+export function getCurrentTime12Hour(): string {
+  return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
+/**
  * Calculates Expected Delivery Time, Actual Delivery Time, and Delay in Minutes
  */
 export function getDeliveryTimeInfo(order: Order): DeliveryTimeInfo {
   const dateStr = order.delivery_date || order.order_date || new Date().toISOString().split('T')[0];
-  const expectedTimeStr = order.delivery_time_expected || order.order_time || '18:00';
+  const expectedTimeStr = order.delivery_time_expected || order.order_time || '06:00 PM';
 
   const expectedDate = parseDateTime(dateStr, expectedTimeStr);
 
-  // Format Expected Time
-  let expectedFormatted = expectedTimeStr;
+  // Format Expected Time in 12-Hour AM/PM
+  let expectedFormatted = formatTo12Hour(expectedTimeStr);
   if (expectedDate) {
-    expectedFormatted = expectedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    expectedFormatted = expectedDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   }
 
   // Actual Delivery Time
@@ -95,9 +146,9 @@ export function getDeliveryTimeInfo(order: Order): DeliveryTimeInfo {
     const d = new Date(order.actual_delivery_time);
     if (!isNaN(d.getTime())) {
       actualDate = d;
-      actualFormatted = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      actualFormatted = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
     } else {
-      actualFormatted = order.actual_delivery_time;
+      actualFormatted = formatTo12Hour(order.actual_delivery_time);
     }
   } else if (order.status === 'delivered') {
     actualFormatted = 'Delivered';

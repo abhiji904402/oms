@@ -1,6 +1,5 @@
 import React from 'react';
 import { useOMS } from '../lib/store';
-import { RoleSwitcher } from './RoleSwitcher';
 import { exportToCSV, printPDFReport } from '../lib/exportUtils';
 import {
   Search,
@@ -101,11 +100,12 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-1.5 bg-slate-950/60 p-1 rounded-xl border border-slate-800">
             <Filter className="w-3.5 h-3.5 text-slate-400 ml-1.5" />
             <select
-              value={selectedOutletFilter}
+              value={session.role === 'outlet' ? session.outlet : selectedOutletFilter}
+              disabled={session.role === 'outlet'}
               onChange={(e) => setSelectedOutletFilter(e.target.value)}
-              className="bg-transparent text-xs text-slate-200 focus:outline-none pr-1 py-1 cursor-pointer font-medium"
+              className="bg-transparent text-xs text-slate-200 focus:outline-none pr-1 py-1 cursor-pointer font-medium disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <option value="ALL" className="bg-slate-900 text-slate-200">All Outlets</option>
+              {session.role !== 'outlet' && <option value="ALL" className="bg-slate-900 text-slate-200">All Outlets</option>}
               {outlets.filter(o => o !== 'ALL').map((o) => (
                 <option key={o} value={o} className="bg-slate-900 text-slate-200">{o}</option>
               ))}
@@ -159,9 +159,6 @@ export const Header: React.FC<HeaderProps> = ({
             <FileText className="w-4 h-4 text-amber-400" />
             <span className="hidden xl:inline">PDF Report</span>
           </button>
-
-          {/* Persona Switcher */}
-          <RoleSwitcher />
 
           {/* Logout Button */}
           <button

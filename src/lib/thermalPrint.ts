@@ -1,4 +1,5 @@
 import { Order } from '../types';
+import { formatTo12Hour } from './timeUtils';
 
 export function printThermalReceipts(orders: Order[]) {
   if (!orders || orders.length === 0) return;
@@ -11,42 +12,61 @@ export function printThermalReceipts(orders: Order[]) {
 
   const receiptHtml = orders
     .map(
-      (o) => `
+      (o) => {
+        const orderDateStr = new Date(o.order_date).toLocaleDateString('en-GB');
+        const orderTimeStr = formatTo12Hour(o.order_time || o.order_date);
+        const delivDateStr = o.delivery_date
+          ? new Date(o.delivery_date).toLocaleDateString('en-GB')
+          : orderDateStr;
+        const delivTimeStr = formatTo12Hour(o.delivery_time_expected || o.order_time);
+
+        return `
     <div class="receipt">
       <div class="center header-title">BROOMIES BAKERY</div>
       <div class="center sub-title">Fresh Baked Handcrafted Delights</div>
+      <div class="divider">================================</div>
+      
+      <!-- TOP KEY DETAILS: ORDER DATE, DELIVERY DATE, DELIVERY TIME -->
+      <div class="top-details-box">
+        <div class="flex-between font-extra-large">
+          <span class="bold">ORDER #:</span>
+          <span class="bold">#${o.order_number}</span>
+        </div>
+        <div class="flex-between font-large">
+          <span class="bold">ORDER DATE:</span>
+          <span class="bold">${orderDateStr} (${orderTimeStr})</span>
+        </div>
+        <div class="flex-between font-large highlight-row">
+          <span class="bold">DELIVERY DATE:</span>
+          <span class="bold">${delivDateStr}</span>
+        </div>
+        <div class="flex-between font-large highlight-row">
+          <span class="bold">DELIVERY TIME:</span>
+          <span class="bold">${delivTimeStr}</span>
+        </div>
+        <div class="flex-between">
+          <span class="bold">OUTLET:</span>
+          <span class="bold uppercase">${o.outlet}</span>
+        </div>
+        <div class="flex-between">
+          <span class="bold">TYPE:</span>
+          <span class="bold uppercase">[${o.delivery_type === 'delivery' ? 'HOME DELIVERY' : 'STORE PICKUP'}]</span>
+        </div>
+      </div>
+
       <div class="divider">--------------------------------</div>
       
-      <div class="flex-between">
-        <span>Order #:</span>
-        <span class="bold">#${o.order_number}</span>
-      </div>
-      <div class="flex-between">
-        <span>Date:</span>
-        <span>${new Date(o.order_date).toLocaleDateString()} ${new Date(o.order_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-      </div>
-      <div class="flex-between">
-        <span>Outlet:</span>
-        <span class="bold">${o.outlet}</span>
-      </div>
-      <div class="flex-between">
-        <span>Type:</span>
-        <span class="bold uppercase">[${o.delivery_type}]</span>
-      </div>
-
-      <div class="divider">--------------------------------</div>
-      
-      <div class="bold">CUSTOMER DETAILS:</div>
-      <div>${o.customer_name}</div>
-      <div>Ph: ${o.mobile_number}</div>
-      ${o.address ? `<div style="font-size: 11px;">Add: ${o.address}</div>` : ''}
+      <div class="bold font-medium uppercase">CUSTOMER DETAILS:</div>
+      <div class="bold">${o.customer_name}</div>
+      <div class="bold">Ph: ${o.mobile_number}</div>
+      ${o.address ? `<div class="bold" style="font-size: 11px;">Add: ${o.address}</div>` : ''}
 
       <div class="divider">--------------------------------</div>
 
-      <div class="bold">ORDER ITEMS:</div>
+      <div class="bold font-medium uppercase">ORDER ITEMS:</div>
       <div class="flex-between item-row">
-        <span>${o.item_type}</span>
-        <span class="bold">Qty: ${o.quantity}</span>
+        <span class="bold font-large">${o.item_type}</span>
+        <span class="bold font-large">Qty: ${o.quantity}</span>
       </div>
 
       <!-- CAKE PHOTO SECTION -->
@@ -59,42 +79,49 @@ export function printThermalReceipts(orders: Order[]) {
 
       ${o.remarks ? `
         <div class="notes-box">
-          <small>Remarks: ${o.remarks}</small>
+          <strong style="font-size:12px;">Remarks:</strong> <span style="font-weight:bold;">${o.remarks}</span>
         </div>
       ` : ''}
 
       <div class="divider">--------------------------------</div>
 
-      <div class="flex-between font-large">
-        <span>TOTAL:</span>
+      <div class="flex-between font-extra-large">
+        <span class="bold">TOTAL:</span>
         <span class="bold">₹${(o.total_amount || 0).toLocaleString()}</span>
       </div>
-      <div class="flex-between">
-        <span>Advance Paid:</span>
-        <span>₹${(o.advance_amount || 0).toLocaleString()}</span>
+      <div class="flex-between font-medium">
+        <span class="bold">Advance Paid:</span>
+        <span class="bold">₹${(o.advance_amount || 0).toLocaleString()}</span>
       </div>
-      <div class="flex-between">
-        <span>Remaining Due:</span>
-        <span class="bold" style="color:${o.remaining_balance > 0 ? '#dc2626' : '#16a34a'}">₹${(o.remaining_balance || 0).toLocaleString()}</span>
+      <div class="flex-between font-large">
+        <span class="bold">Remaining Due:</span>
+        <span class="bold" style="color:${o.remaining_balance > 0 ? '#000' : '#000'}; text-decoration: ${o.remaining_balance > 0 ? 'underline' : 'none'};">₹${(o.remaining_balance || 0).toLocaleString()}</span>
       </div>
-      <div class="flex-between">
-        <span>Payment Mode:</span>
+      <div class="flex-between font-medium">
+        <span class="bold">Payment Mode:</span>
         <span class="bold uppercase">${o.payment_type}</span>
       </div>
 
-      
+      ${(o.advance_bill_number || o.final_bill_number) ? `
+        <div class="flex-between font-medium" style="margin-top: 3px;">
+          <span class="bold">Bill No(s):</span>
+          <span class="bold">${[o.advance_bill_number, o.final_bill_number].filter(Boolean).join(' / ')}</span>
+        </div>
+      ` : ''}
+
       ${o.otp ? `
         <div class="center otp-box">
           DELIVERY OTP: <strong>${o.otp}</strong>
         </div>
       ` : ''}
 
-      <div class="divider">--------------------------------</div>
-      <div class="center footer-text">Thank you for choosing Broomies!</div>
-      <div class="center footer-text">www.broomiesbakery.com</div>
+      <div class="divider">================================</div>
+      <div class="center footer-text bold">Thank you for choosing Broomies!</div>
+      <div class="center footer-text bold">www.broomiesbakery.com</div>
       <div class="cut-line"> - - - - - CUT HERE - - - - - </div>
     </div>
-  `
+  `;
+      }
     )
     .join('');
 
@@ -109,36 +136,42 @@ export function printThermalReceipts(orders: Order[]) {
             margin: 0;
           }
           body {
-            font-family: 'Courier New', Courier, monospace;
+            font-family: Arial, Helvetica, sans-serif, 'Courier New';
             width: 80mm;
             margin: 0 auto;
-            padding: 5mm;
+            padding: 4mm;
             color: #000;
             background: #fff;
-            font-size: 12px;
-            line-height: 1.2;
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.3;
+            -webkit-print-color-adjust: exact;
           }
           .receipt {
             margin-bottom: 20px;
             page-break-after: always;
           }
           .center { text-align: center; }
-          .bold { font-weight: bold; }
+          .bold { font-weight: 900 !important; color: #000 !important; }
           .uppercase { text-transform: uppercase; }
-          .header-title { font-size: 16px; font-weight: bold; letter-spacing: 1px; }
-          .sub-title { font-size: 10px; margin-bottom: 4px; }
-          .divider { text-align: center; font-weight: bold; margin: 4px 0; overflow: hidden; white-space: nowrap; }
-          .flex-between { display: flex; justify-content: space-between; margin: 2px 0; }
+          .header-title { font-size: 18px; font-weight: 900; letter-spacing: 1px; }
+          .sub-title { font-size: 11px; font-weight: 800; margin-bottom: 4px; }
+          .divider { text-align: center; font-weight: 900; margin: 4px 0; overflow: hidden; white-space: nowrap; font-size: 14px; }
+          .flex-between { display: flex; justify-content: space-between; margin: 3px 0; }
+          .top-details-box { border: 2px solid #000; padding: 6px; margin: 4px 0; border-radius: 4px; background: #fff; }
+          .highlight-row { background: #eee; padding: 2px 4px; border-radius: 2px; }
+          .font-medium { font-size: 12px; }
           .font-large { font-size: 14px; }
+          .font-extra-large { font-size: 16px; font-weight: 900; }
           .item-row { margin: 6px 0; }
           .photo-container { margin: 8px 0; text-align: center; }
-          .photo-title { font-size: 11px; font-weight: bold; margin-bottom: 4px; }
+          .photo-title { font-size: 12px; font-weight: 900; margin-bottom: 4px; }
           .photo-wrapper { text-align: center; }
-          .cake-photo { max-width: 100%; width: 220px; max-height: 200px; object-fit: cover; border: 1.5px solid #000; border-radius: 4px; display: block; margin: 0 auto; }
-          .notes-box { font-style: italic; border: 1px dashed #000; padding: 4px; margin: 4px 0; font-size: 11px; }
-          .otp-box { margin: 8px 0; padding: 4px; background: #eee; font-size: 13px; border: 1px solid #000; }
-          .footer-text { font-size: 10px; margin-top: 2px; }
-          .cut-line { font-size: 9px; text-align: center; margin-top: 15px; margin-bottom: 15px; color: #666; }
+          .cake-photo { max-width: 100%; width: 220px; max-height: 200px; object-fit: cover; border: 2px solid #000; border-radius: 4px; display: block; margin: 0 auto; }
+          .notes-box { font-style: italic; border: 1.5px dashed #000; padding: 6px; margin: 4px 0; font-size: 12px; }
+          .otp-box { margin: 8px 0; padding: 6px; background: #eee; font-size: 14px; border: 2px solid #000; font-weight: 900; }
+          .footer-text { font-size: 11px; margin-top: 2px; font-weight: 800; }
+          .cut-line { font-size: 10px; text-align: center; margin-top: 15px; margin-bottom: 15px; color: #000; font-weight: 900; }
           @media print {
             .no-print { display: none; }
           }

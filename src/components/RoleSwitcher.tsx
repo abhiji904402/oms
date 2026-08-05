@@ -74,15 +74,18 @@ export const RoleSwitcher: React.FC = () => {
                   <Store className="w-4 h-4 text-amber-400" />
                   <div>
                     <div>Outlet Dashboard</div>
-                    <div className="text-[11px] text-slate-400 font-normal">Kitchen & dispatch view</div>
+                    <div className="text-[11px] text-slate-400 font-normal">
+                      {session.role === 'outlet' ? 'Locked to assigned branch' : 'Kitchen & dispatch view'}
+                    </div>
                   </div>
                 </button>
               </div>
 
               <select
-                value={selectedOutlet}
+                value={session.role === 'outlet' ? session.outlet : selectedOutlet}
+                disabled={session.role === 'outlet'}
                 onChange={(e) => setSelectedOutlet(e.target.value as OutletName)}
-                className="w-full text-xs bg-slate-950 border border-slate-700/80 rounded px-2 py-1 text-slate-200"
+                className="w-full text-xs bg-slate-950 border border-slate-700/80 rounded px-2 py-1 text-slate-200 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {OUTLETS.map((o) => (
                   <option key={o} value={o}>{o}</option>

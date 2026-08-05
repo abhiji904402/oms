@@ -19,7 +19,7 @@ import {
   Sparkles,
   UserCheck
 } from 'lucide-react';
-import { getDeliveryTimeInfo } from '../lib/timeUtils';
+import { getDeliveryTimeInfo, formatTo12Hour } from '../lib/timeUtils';
 
 interface ViewOrderModalProps {
   order: Order | null;
@@ -72,7 +72,7 @@ export const ViewOrderModal: React.FC<ViewOrderModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Created: {new Date(order.created_at).toLocaleString()}
+                Created: {new Date(order.created_at).toLocaleDateString()} {formatTo12Hour(order.created_at)}
               </p>
             </div>
           </div>

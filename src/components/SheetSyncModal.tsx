@@ -7,32 +7,22 @@ interface SheetSyncModalProps {
   onClose: () => void;
 }
 
-const APPS_SCRIPT_CODE = `// Google Apps Script for Bakery Order Live Sync (Create, Edit & Delete)
+const APPS_SCRIPT_CODE = `// Google Apps Script for Bakery Order Live Sync (Per-Outlet Sheets)
 function doPost(e) {
   try {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
     var contents = e.postData.contents;
     var data = JSON.parse(contents);
 
-    // Auto-create Header row if sheet is completely empty
-    if (sheet.getLastRow() === 0) {
-      sheet.appendRow([
-        "Order #", "Customer Name", "Phone", "Outlet", "Item Type", "Quantity/Weight",
-        "Informed By", "Delivery Type", "Delivery Date", "Time", "Total (₹)", "Advance (₹)",
-        "Remaining (₹)", "Payment Type", "Adv Bill No.", "Final Bill No.", "Status", "Cake Photo URL", "Remarks", "Last Updated"
-      ]);
-      sheet.getRange(1, 1, 1, 20).setFontWeight("bold").setBackground("#d9ead3");
-    }
-
     // Check action: delete, create, update
     if (data && data.action === "delete") {
-      deleteOrder(sheet, data.order || data);
+      deleteOrder(ss, data.order || data);
     } else if (Array.isArray(data)) {
-      data.forEach(function(order) { appendOrUpdateOrder(sheet, order); });
+      data.forEach(function(order) { appendOrUpdateOrder(ss, order); });
     } else if (data && data.order) {
-      appendOrUpdateOrder(sheet, data.order);
+      appendOrUpdateOrder(ss, data.order);
     } else if (data && data.order_number) {
-      appendOrUpdateOrder(sheet, data);
+      appendOrUpdateOrder(ss, data);
     }
 
     return ContentService.createTextOutput(JSON.stringify({ result: "success" }))
@@ -43,7 +33,26 @@ function doPost(e) {
   }
 }
 
-function appendOrUpdateOrder(sheet, order) {
+function getOrCreateOutletSheet(ss, outletName) {
+  var sheetName = outletName && outletName.toString().trim() ? outletName.toString().trim() : "All Orders";
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+  }
+  // Auto-create Header row if sheet is empty
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow([
+      "Order #", "Customer Name", "Phone", "Outlet", "Item Type", "Quantity/Weight",
+      "Informed By", "Delivery Type", "Delivery Date", "Time", "Total (₹)", "Advance (₹)",
+      "Remaining (₹)", "Payment Type", "Adv Bill No.", "Final Bill No.", "Status", "Cake Photo URL", "Remarks", "Last Updated"
+    ]);
+    sheet.getRange(1, 1, 1, 20).setFontWeight("bold").setBackground("#d9ead3");
+  }
+  return sheet;
+}
+
+function appendOrUpdateOrder(ss, order) {
+  var sheet = getOrCreateOutletSheet(ss, order.outlet);
   var rows = sheet.getDataRange().getValues();
   var orderNum = order.order_number;
   var rowIndex = -1;
@@ -85,19 +94,23 @@ function appendOrUpdateOrder(sheet, order) {
   }
 }
 
-function deleteOrder(sheet, order) {
-  var rows = sheet.getDataRange().getValues();
+function deleteOrder(ss, order) {
   var orderNum = typeof order === 'object' ? order.order_number : order;
-  for (var i = 1; i < rows.length; i++) {
-    if (rows[i][0] == orderNum) {
-      sheet.deleteRow(i + 1);
-      break;
+  var sheets = ss.getSheets();
+  for (var s = 0; s < sheets.length; s++) {
+    var sheet = sheets[s];
+    var rows = sheet.getDataRange().getValues();
+    for (var i = 1; i < rows.length; i++) {
+      if (rows[i][0] == orderNum) {
+        sheet.deleteRow(i + 1);
+        return;
+      }
     }
   }
 }
 
 function doGet(e) {
-  return ContentService.createTextOutput("Bakery OMS Live Google Sheets Sync Webhook is Active!");
+  return ContentService.createTextOutput("Bakery OMS Multi-Outlet Google Sheets Sync Webhook is Active!");
 }`;
 
 export const SheetSyncModal: React.FC<SheetSyncModalProps> = ({ isOpen, onClose }) => {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Order, OrderStatus } from '../types';
 import { useOMS } from '../lib/store';
 import { printThermalReceipts } from '../lib/thermalPrint';
-import { getDeliveryTimeInfo, getCountdownInfo } from '../lib/timeUtils';
+import { getDeliveryTimeInfo, getCountdownInfo, formatTo12Hour } from '../lib/timeUtils';
 import {
   Clock,
   MapPin,
@@ -276,7 +276,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order, compact = false, on
               </div>
               <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
                 <Clock className="w-3 h-3 text-slate-500" />
-                <span>{new Date(order.order_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                <span>{formatTo12Hour(order.order_time) || formatTo12Hour(order.order_date)}</span>
                 <span>({order.outlet})</span>
               </div>
             </div>
@@ -400,7 +400,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order, compact = false, on
             {order.payment_changed_by && (
               <div className="text-[10px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-800/40">
                 <span>Payment Logged By: <strong className="text-slate-400">{order.payment_changed_by}</strong></span>
-                <span>{order.payment_changed_at ? new Date(order.payment_changed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                <span>{order.payment_changed_at ? formatTo12Hour(order.payment_changed_at) : ''}</span>
               </div>
             )}
 

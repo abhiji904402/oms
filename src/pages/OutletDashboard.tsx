@@ -31,10 +31,22 @@ const OUTLETS: OutletName[] = ['Sector 31', 'Sector 35', 'Sector 42', 'Sector 88
 export const OutletDashboard: React.FC = () => {
   const { orders = [], session, switchRole } = useOMS();
 
+  const isOutletUser = session?.role === 'outlet';
+  const assignedOutlet = session?.outlet || 'Sector 31';
+
   const safeOrders = useMemo(() => orders || [], [orders]);
 
-  // Selected Outlet
-  const [selectedOutlet, setSelectedOutlet] = useState<string>('ALL');
+  // Selected Outlet (Defaults to assigned outlet for outlet user, or ALL for admin)
+  const [selectedOutlet, setSelectedOutlet] = useState<string>(
+    isOutletUser ? assignedOutlet : 'ALL'
+  );
+
+  // Sync selected outlet if role changes or is outlet user
+  React.useEffect(() => {
+    if (isOutletUser && session?.outlet) {
+      setSelectedOutlet(session.outlet);
+    }
+  }, [isOutletUser, session?.outlet]);
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -327,94 +339,127 @@ export const OutletDashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Outlet User Restricted Banner */}
+      {isOutletUser && (
+        <div className="p-3.5 rounded-2xl bg-amber-950/40 border border-amber-800/60 text-amber-300 text-xs flex items-center justify-between gap-3 shadow-lg">
+          <div className="flex items-center gap-2 font-medium">
+            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>
+              <strong>Outlet Staff Portal ({assignedOutlet}):</strong> You are logged in as Outlet role for <strong>{assignedOutlet}</strong>. Access to other branch reports and bulk actions is restricted.
+            </span>
+          </div>
+          <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-200 border border-amber-500/30 shrink-0">
+            Locked to {assignedOutlet}
+          </span>
+        </div>
+      )}
+
       {/* OUTLET CARDS OVERVIEW (Matching User Screenshot Layout) */}
       <div>
         <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-between">
           <span>Outlet Performance Summary</span>
-          <span className="text-purple-400 font-normal">Click card to filter orders</span>
+          <span className="text-purple-400 font-normal">
+            {isOutletUser ? `Viewing ${assignedOutlet} Branch Only` : 'Click card to filter orders'}
+          </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
           {/* ALL OUTLETS CARD */}
-          <div
-            onClick={() => {
-              setSelectedOutlet('ALL');
-              switchRole('outlet', undefined);
-            }}
-            className={`p-4 rounded-2xl border transition cursor-pointer space-y-2 shadow-xl ${
-              selectedOutlet === 'ALL'
-                ? 'bg-[#13102d] border-purple-500 ring-2 ring-purple-500/30'
-                : 'bg-[#0e111d] border-indigo-950 hover:border-purple-500/40'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-2xl">🏬</span>
-              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                ALL
-              </span>
-            </div>
-
-            <div className="font-extrabold text-white text-base">All Outlets</div>
-
-            <div className="flex items-center justify-between text-xs pt-1 border-t border-indigo-950">
-              <span className="text-slate-400 flex items-center gap-1">
-                <Package className="w-3.5 h-3.5 text-purple-400" />
-                {grandMetrics.totalCount}
-              </span>
-              <span className="font-black text-emerald-400">
-                ₹{grandMetrics.totalRevenue.toLocaleString()}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between text-[11px] pt-0.5">
-              <span className="text-amber-400 font-semibold">Pending: {grandMetrics.pendingCount}</span>
-              <span className="text-emerald-400 font-semibold">Done: {grandMetrics.doneCount}</span>
-            </div>
-          </div>
-
-          {/* INDIVIDUAL OUTLET CARDS */}
-          {outletMetrics.map((met) => (
+          {!isOutletUser && (
             <div
-              key={met.name}
               onClick={() => {
-                setSelectedOutlet(met.name);
-                switchRole('outlet', met.name as OutletName);
+                setSelectedOutlet('ALL');
+                switchRole('outlet', undefined);
               }}
               className={`p-4 rounded-2xl border transition cursor-pointer space-y-2 shadow-xl ${
-                selectedOutlet === met.name
+                selectedOutlet === 'ALL'
                   ? 'bg-[#13102d] border-purple-500 ring-2 ring-purple-500/30'
                   : 'bg-[#0e111d] border-indigo-950 hover:border-purple-500/40'
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-2xl">
-                  {met.name.includes('31') ? '🏪' : met.name.includes('42') ? '🏢' : met.name.includes('35') ? '🏣' : '🏡'}
+                <span className="text-2xl">🏬</span>
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  ALL
                 </span>
-                {selectedOutlet === met.name && (
-                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                    Active
-                  </span>
-                )}
               </div>
 
-              <div className="font-extrabold text-white text-base">{met.name}</div>
+              <div className="font-extrabold text-white text-base">All Outlets</div>
 
               <div className="flex items-center justify-between text-xs pt-1 border-t border-indigo-950">
                 <span className="text-slate-400 flex items-center gap-1">
                   <Package className="w-3.5 h-3.5 text-purple-400" />
-                  {met.totalCount}
+                  {grandMetrics.totalCount}
                 </span>
                 <span className="font-black text-emerald-400">
-                  ₹{met.totalRevenue.toLocaleString()}
+                  ₹{grandMetrics.totalRevenue.toLocaleString()}
                 </span>
               </div>
 
               <div className="flex items-center justify-between text-[11px] pt-0.5">
-                <span className="text-amber-400 font-semibold">Pending: {met.pendingCount}</span>
-                <span className="text-emerald-400 font-semibold">Done: {met.doneCount}</span>
+                <span className="text-amber-400 font-semibold">Pending: {grandMetrics.pendingCount}</span>
+                <span className="text-emerald-400 font-semibold">Done: {grandMetrics.doneCount}</span>
               </div>
             </div>
-          ))}
+          )}
+
+          {/* INDIVIDUAL OUTLET CARDS */}
+          {outletMetrics.map((met) => {
+            const isAssigned = isOutletUser && met.name === assignedOutlet;
+            const isDisabledForUser = isOutletUser && met.name !== assignedOutlet;
+
+            return (
+              <div
+                key={met.name}
+                onClick={() => {
+                  if (isDisabledForUser) {
+                    alert(`Access Restricted: As outlet staff for ${assignedOutlet}, you cannot view reports for ${met.name}.`);
+                    return;
+                  }
+                  setSelectedOutlet(met.name);
+                  switchRole('outlet', met.name as OutletName);
+                }}
+                className={`p-4 rounded-2xl border transition space-y-2 shadow-xl ${
+                  isDisabledForUser
+                    ? 'opacity-40 bg-[#0a0c16] border-slate-900 cursor-not-allowed'
+                    : selectedOutlet === met.name
+                    ? 'bg-[#13102d] border-purple-500 ring-2 ring-purple-500/30 cursor-pointer'
+                    : 'bg-[#0e111d] border-indigo-950 hover:border-purple-500/40 cursor-pointer'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-2xl">
+                    {met.name.includes('31') ? '🏪' : met.name.includes('42') ? '🏢' : met.name.includes('35') ? '🏣' : '🏡'}
+                  </span>
+                  {selectedOutlet === met.name && (
+                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                      Active
+                    </span>
+                  )}
+                  {isDisabledForUser && (
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Locked</span>
+                  )}
+                </div>
+
+                <div className="font-extrabold text-white text-base">{met.name}</div>
+
+                <div className="flex items-center justify-between text-xs pt-1 border-t border-indigo-950">
+                  <span className="text-slate-400 flex items-center gap-1">
+                    <Package className="w-3.5 h-3.5 text-purple-400" />
+                    {met.totalCount}
+                  </span>
+                  <span className="font-black text-emerald-400">
+                    ₹{met.totalRevenue.toLocaleString()}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] pt-0.5">
+                  <span className="text-amber-400 font-semibold">Pending: {met.pendingCount}</span>
+                  <span className="text-emerald-400 font-semibold">Done: {met.doneCount}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

@@ -20,6 +20,7 @@ import {
   Ban,
   DollarSign
 } from 'lucide-react';
+import { getDeliveryTimeInfo, formatTo12Hour } from '../lib/timeUtils';
 
 export const AnalyticsPage: React.FC = () => {
   const { orders = [] } = useOMS();
@@ -742,6 +743,7 @@ export const AnalyticsPage: React.FC = () => {
               <tr className="border-b border-indigo-950 bg-[#070913] text-indigo-300 text-[11px] font-semibold uppercase tracking-wider">
                 <th className="py-3 px-3">#</th>
                 <th className="py-3 px-3">OUTLET</th>
+                <th className="py-3 px-3">CUSTOMER</th>
                 <th className="py-3 px-3">ITEM & QTY</th>
                 <th className="py-3 px-3">AMOUNT</th>
                 <th className="py-3 px-3">PAYMENT</th>
@@ -750,6 +752,7 @@ export const AnalyticsPage: React.FC = () => {
                 <th className="py-3 px-3">EXP. TIME</th>
                 <th className="py-3 px-3">ACT. TIME</th>
                 <th className="py-3 px-3">DELAY</th>
+                <th className="py-3 px-3">DELIVERY PARTNER</th>
                 <th className="py-3 px-3">DELIVERED BY</th>
                 <th className="py-3 px-3">PAYMENT AUDIT</th>
               </tr>
@@ -757,13 +760,14 @@ export const AnalyticsPage: React.FC = () => {
             <tbody className="divide-y divide-indigo-950/60 text-xs">
               {filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="py-8 text-center text-slate-500">
+                  <td colSpan={14} className="py-8 text-center text-slate-500">
                     No orders found matching criteria.
                   </td>
                 </tr>
               ) : (
                 filteredOrders.map((ord) => {
                   const isDue = (ord.remaining_balance || 0) > 0;
+                  const timeInfo = getDeliveryTimeInfo(ord);
                   return (
                     <tr key={ord.id} className="hover:bg-indigo-950/30 transition">
                       {/* # Order Number */}
@@ -773,6 +777,11 @@ export const AnalyticsPage: React.FC = () => {
                       {/* OUTLET */}
                       <td className="py-3 px-3 text-slate-200 font-medium">
                         {ord.outlet}
+                      </td>
+                      {/* CUSTOMER */}
+                      <td className="py-3 px-3 text-slate-200">
+                        <div className="font-semibold">{ord.customer_name}</div>
+                        <div className="text-[10px] text-slate-400">{ord.mobile_number}</div>
                       </td>
                       {/* ITEM & QTY */}
                       <td className="py-3 px-3 text-slate-200">
@@ -816,18 +825,32 @@ export const AnalyticsPage: React.FC = () => {
                       </td>
                       {/* EXP. TIME */}
                       <td className="py-3 px-3 text-slate-300 font-mono font-bold">
-                        {ord.delivery_time_expected || '—'}
+                        {timeInfo.expectedFormatted}
                       </td>
                       {/* ACT. TIME */}
-                      <td className="py-3 px-3 text-slate-500 font-mono">—</td>
+                      <td className="py-3 px-3 text-slate-200 font-mono font-bold">
+                        {timeInfo.actualFormatted}
+                      </td>
                       {/* DELAY */}
-                      <td className="py-3 px-3 text-slate-500 font-mono">—</td>
-                      {/* DELIVERED BY */}
-                      <td className="py-3 px-3 text-slate-300">
+                      <td className="py-3 px-3 font-mono">
+                        <span className={timeInfo.delayMinutes > 0 ? 'text-rose-400 font-bold' : 'text-emerald-400'}>
+                          {timeInfo.delayText}
+                        </span>
+                      </td>
+                      {/* DELIVERY PARTNER */}
+                      <td className="py-3 px-3 text-slate-200 font-medium">
                         {ord.delivery_partner || '—'}
                       </td>
+                      {/* DELIVERED BY */}
+                      <td className="py-3 px-3 text-slate-300">
+                        {ord.delivered_by || (ord.status === 'delivered' ? (ord.delivery_partner || `${ord.outlet} Staff`) : '—')}
+                      </td>
                       {/* PAYMENT AUDIT */}
-                      <td className="py-3 px-3 text-slate-500 font-mono">—</td>
+                      <td className="py-3 px-3 text-slate-400 font-mono text-[11px]">
+                        {ord.payment_changed_by ? (
+                          <span>{ord.payment_changed_by} ({formatTo12Hour(ord.payment_changed_at || '')})</span>
+                        ) : '—'}
+                      </td>
                     </tr>
                   );
                 })

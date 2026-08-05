@@ -359,7 +359,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ isOpen, onClose })
       remarks: remarks || '',
       status: 'pending',
       delivery_date: deliveryDate || todayStr,
-      delivery_time_expected: expectedDeliveryTime || '18:00',
+      delivery_time_expected: expectedDeliveryTime || '06:00 PM',
       item_image_url: itemImageUrl || undefined
     });
 
@@ -423,9 +423,10 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ isOpen, onClose })
                 Select Outlet <span className="text-purple-400">*</span>
               </label>
               <select
-                value={outlet}
+                value={session.role === 'outlet' ? (session.outlet || outlet) : outlet}
+                disabled={session.role === 'outlet'}
                 onChange={(e) => setOutlet(e.target.value as OutletName)}
-                className="w-full bg-[#121524] border border-indigo-950 rounded-xl px-3.5 py-2.5 text-slate-100 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/40 transition"
+                className="w-full bg-[#121524] border border-indigo-950 rounded-xl px-3.5 py-2.5 text-slate-100 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/40 transition disabled:opacity-60 disabled:cursor-not-allowed"
                 required
               >
                 <option value="" disabled>Choose outlet</option>
