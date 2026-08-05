@@ -1,0 +1,6 @@
+{
+  "name": "Broomies OMS",
+  "description": "Order Management System for Broomies Bakery featuring Admin, Outlet, and Delivery dashboards, thermal printing, real-time sync, image compression, and analytics.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
