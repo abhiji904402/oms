@@ -1,31 +1,32 @@
 // Broomies Rider Progressive Web App (PWA) Service Worker
-const CACHE_NAME = 'broomies-rider-pwa-v2.4';
+const CACHE_NAME = 'broomies-rider-v2.6';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/icon-192.png',
+  '/icon-512.png'
 ];
 
 // Install Event
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[ServiceWorker] Caching app shell');
       return cache.addAll(ASSETS_TO_CACHE).catch((err) => {
-        console.warn('[ServiceWorker] Cache addAll warning:', err);
+        console.warn('[SW] Cache warning:', err);
       });
-    }).then(() => self.skipWaiting())
+    })
   );
 });
 
 // Activate Event
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keyList) => {
+    caches.keys().then((keys) => {
       return Promise.all(
-        keyList.map((key) => {
+        keys.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('[ServiceWorker] Removing old cache', key);
             return caches.delete(key);
           }
         })
@@ -36,14 +37,13 @@ self.addEventListener('activate', (event) => {
 
 // Fetch Event
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests
   if (event.request.method !== 'GET') return;
   
+  // Network first, falling back to cache
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Clone response to put in cache if valid
-        if (response && response.status === 200 && response.type === 'basic') {
+        if (response && response.status === 200) {
           const responseToCache = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache);
@@ -52,11 +52,8 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => {
-        // Fallback to cache if network fails
-        return caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
+        return caches.match(event.request).then((cached) => {
+          if (cached) return cached;
           if (event.request.mode === 'navigate') {
             return caches.match('/index.html');
           }

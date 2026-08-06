@@ -28,9 +28,14 @@ export const InstallAndroidAppModal: React.FC<InstallAndroidAppModalProps> = ({
     const handler = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
+      (window as any).deferredPwaPrompt = e;
     };
 
     window.addEventListener('beforeinstallprompt', handler);
+
+    if ((window as any).deferredPwaPrompt) {
+      setDeferredPrompt((window as any).deferredPwaPrompt);
+    }
 
     if (window.matchMedia('(display-mode: standalone)').matches) {
       setIsInstalled(true);
@@ -42,19 +47,21 @@ export const InstallAndroidAppModal: React.FC<InstallAndroidAppModalProps> = ({
   if (!isOpen) return null;
 
   const handleInstallPwa = async () => {
-    if (deferredPrompt) {
+    const activePrompt = deferredPrompt || (window as any).deferredPwaPrompt;
+    if (activePrompt) {
       try {
-        deferredPrompt.prompt();
-        const choice = await deferredPrompt.userChoice;
+        activePrompt.prompt();
+        const choice = await activePrompt.userChoice;
         if (choice.outcome === 'accepted') {
           setIsInstalled(true);
         }
         setDeferredPrompt(null);
+        (window as any).deferredPwaPrompt = null;
       } catch (e) {
         console.warn('PWA prompt handled');
       }
     } else {
-      alert('To install in Chrome: Tap the 3-dots menu (⋮) at top right and select "Install app" or "Add to Home screen".');
+      alert('Google Chrome me "Install App" (या Add to Home screen) ke liye:\n1. Chrome ke top-right 3 dots menu (⋮) par click karein.\n2. "Install App" / "App install karein" par tap karein.');
     }
   };
 
