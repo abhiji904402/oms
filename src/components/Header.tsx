@@ -134,39 +134,49 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Middle Filters: Outlet & Status dropdowns */}
-        <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
-          <div className="flex items-center gap-1.5 bg-slate-950/60 p-1 rounded-xl border border-slate-800">
-            <Filter className="w-3.5 h-3.5 text-slate-400 ml-1.5" />
-            <select
-              value={session.role === 'outlet' ? session.outlet : selectedOutletFilter}
-              disabled={session.role === 'outlet'}
-              onChange={(e) => setSelectedOutletFilter(e.target.value)}
-              className="bg-transparent text-xs text-slate-200 focus:outline-none pr-1 py-1 cursor-pointer font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {session.role !== 'outlet' && <option value="ALL" className="bg-slate-900 text-slate-200">All Outlets</option>}
-              {outlets.filter(o => o !== 'ALL').map((o) => (
-                <option key={o} value={o} className="bg-slate-900 text-slate-200">{o}</option>
-              ))}
-            </select>
-          </div>
+        {/* Middle Filters: Outlet & Status dropdowns (Hidden for Delivery Riders) */}
+        {session.role !== 'delivery' && (
+          <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
+            <div className="flex items-center gap-1.5 bg-slate-950/60 p-1 rounded-xl border border-slate-800">
+              <Filter className="w-3.5 h-3.5 text-slate-400 ml-1.5" />
+              <select
+                value={session.role === 'outlet' ? session.outlet : selectedOutletFilter}
+                disabled={session.role === 'outlet'}
+                onChange={(e) => setSelectedOutletFilter(e.target.value)}
+                className="bg-transparent text-xs text-slate-200 focus:outline-none pr-1 py-1 cursor-pointer font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {session.role !== 'outlet' && <option value="ALL" className="bg-slate-900 text-slate-200">All Outlets</option>}
+                {outlets.filter(o => o !== 'ALL').map((o) => (
+                  <option key={o} value={o} className="bg-slate-900 text-slate-200">{o}</option>
+                ))}
+              </select>
+            </div>
 
-          <div className="flex items-center gap-1.5 bg-slate-950/60 p-1 rounded-xl border border-slate-800">
-            <select
-              value={selectedStatusFilter}
-              onChange={(e) => setSelectedStatusFilter(e.target.value)}
-              className="bg-transparent text-xs text-slate-200 focus:outline-none px-2 py-1 cursor-pointer capitalize font-medium"
-            >
-              <option value="ALL" className="bg-slate-900 text-slate-200">All Statuses</option>
-              {statuses.filter(s => s !== 'ALL').map((s) => (
-                <option key={s} value={s} className="bg-slate-900 text-slate-200 capitalize">{s}</option>
-              ))}
-            </select>
+            <div className="flex items-center gap-1.5 bg-slate-950/60 p-1 rounded-xl border border-slate-800">
+              <select
+                value={selectedStatusFilter}
+                onChange={(e) => setSelectedStatusFilter(e.target.value)}
+                className="bg-transparent text-xs text-slate-200 focus:outline-none px-2 py-1 cursor-pointer capitalize font-medium"
+              >
+                <option value="ALL" className="bg-slate-900 text-slate-200">All Statuses</option>
+                {statuses.filter(s => s !== 'ALL').map((s) => (
+                  <option key={s} value={s} className="bg-slate-900 text-slate-200 capitalize">{s}</option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Right Section: Export Actions, Password Settings & Logout */}
         <div className="flex items-center justify-end gap-2 w-full lg:w-auto">
+          {/* Rider Mode Indicator Badge */}
+          {session.role === 'delivery' && (
+            <div className="px-3 py-1.5 rounded-xl bg-purple-950/60 border border-purple-800/60 text-purple-300 text-xs font-extrabold flex items-center gap-1.5">
+              <span>🛵 Rider Mode</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            </div>
+          )}
+
           {/* Admin Passwords Button */}
           {session.role === 'admin' && onOpenPasswordModal && (
             <button
@@ -179,39 +189,43 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
-          {/* Export CSV */}
-          <button
-            onClick={() => {
-              if (filteredHeaderOrders.length === 0) {
-                alert('No matching orders found to export for the current filters.');
-                return;
-              }
-              exportToCSV(filteredHeaderOrders, `Filtered_Orders_${new Date().toISOString().split('T')[0]}.csv`);
-            }}
-            title={`Export ${filteredHeaderOrders.length} Filtered CSV Records`}
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-slate-300 transition text-xs font-medium flex items-center gap-1.5"
-          >
-            <Download className="w-4 h-4 text-emerald-400" />
-            <span className="hidden xl:inline">Export CSV ({filteredHeaderOrders.length})</span>
-          </button>
+          {/* Export CSV (Admin & Outlet only) */}
+          {session.role !== 'delivery' && (
+            <button
+              onClick={() => {
+                if (filteredHeaderOrders.length === 0) {
+                  alert('No matching orders found to export for the current filters.');
+                  return;
+                }
+                exportToCSV(filteredHeaderOrders, `Filtered_Orders_${new Date().toISOString().split('T')[0]}.csv`);
+              }}
+              title={`Export ${filteredHeaderOrders.length} Filtered CSV Records`}
+              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-slate-300 transition text-xs font-medium flex items-center gap-1.5"
+            >
+              <Download className="w-4 h-4 text-emerald-400" />
+              <span className="hidden xl:inline">Export CSV ({filteredHeaderOrders.length})</span>
+            </button>
+          )}
 
-          {/* Export PDF Report */}
-          <button
-            onClick={() => {
-              if (filteredHeaderOrders.length === 0) {
-                alert('No matching orders found to export for the current filters.');
-                return;
-              }
-              const outletName = session.role === 'outlet' ? session.outlet : selectedOutletFilter;
-              const subtitle = outletName !== 'ALL' ? ` - ${outletName}` : '';
-              printPDFReport(filteredHeaderOrders, `Broomies Bakery - Filtered Orders Report${subtitle} (${filteredHeaderOrders.length} Records)`);
-            }}
-            title={`Generate PDF Summary for ${filteredHeaderOrders.length} Filtered Records`}
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-slate-300 transition text-xs font-medium flex items-center gap-1.5"
-          >
-            <FileText className="w-4 h-4 text-amber-400" />
-            <span className="hidden xl:inline">PDF Report ({filteredHeaderOrders.length})</span>
-          </button>
+          {/* Export PDF Report (Admin & Outlet only) */}
+          {session.role !== 'delivery' && (
+            <button
+              onClick={() => {
+                if (filteredHeaderOrders.length === 0) {
+                  alert('No matching orders found to export for the current filters.');
+                  return;
+                }
+                const outletName = session.role === 'outlet' ? session.outlet : selectedOutletFilter;
+                const subtitle = outletName !== 'ALL' ? ` - ${outletName}` : '';
+                printPDFReport(filteredHeaderOrders, `Broomies Bakery - Filtered Orders Report${subtitle} (${filteredHeaderOrders.length} Records)`);
+              }}
+              title={`Generate PDF Summary for ${filteredHeaderOrders.length} Filtered Records`}
+              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-slate-300 transition text-xs font-medium flex items-center gap-1.5"
+            >
+              <FileText className="w-4 h-4 text-amber-400" />
+              <span className="hidden xl:inline">PDF Report ({filteredHeaderOrders.length})</span>
+            </button>
+          )}
 
           {/* Logout Button */}
           <button

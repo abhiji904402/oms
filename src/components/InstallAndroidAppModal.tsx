@@ -71,11 +71,11 @@ export const InstallAndroidAppModal: React.FC<InstallAndroidAppModalProps> = ({
         {/* Modal Header */}
         <div className="p-5 bg-gradient-to-r from-purple-950 via-[#101432] to-indigo-950 border-b border-indigo-900/60 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-emerald-500 p-0.5 shadow-xl">
-              <div className="w-full h-full bg-[#0d1024] rounded-[14px] flex items-center justify-center">
-                <Smartphone className="w-6 h-6 text-emerald-400" />
-              </div>
-            </div>
+            <img
+              src="/app-icon.svg"
+              alt="Broomies App Icon"
+              className="w-12 h-12 rounded-2xl shadow-xl border border-purple-500/30 object-cover"
+            />
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base sm:text-lg font-black text-white">
