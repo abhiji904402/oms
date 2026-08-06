@@ -2,19 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
   X,
   Smartphone,
-  Download,
   CheckCircle2,
-  ShieldCheck,
   Zap,
-  MapPin,
-  Key,
   Truck,
-  Sparkles,
   ExternalLink,
-  FileCode,
-  Globe
+  Globe,
+  PlusCircle
 } from 'lucide-react';
-import { generateAndroidAppBundle, generateDirectApkFile } from '../utils/apkGenerator';
 
 interface InstallAndroidAppModalProps {
   isOpen: boolean;
@@ -29,8 +23,6 @@ export const InstallAndroidAppModal: React.FC<InstallAndroidAppModalProps> = ({
 }) => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -49,35 +41,7 @@ export const InstallAndroidAppModal: React.FC<InstallAndroidAppModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleDownloadDirectApk = async () => {
-    setIsDownloading(true);
-    setDownloadProgress(20);
-
-    try {
-      const apkBlob = await generateDirectApkFile('https://broms.vercel.app');
-      setDownloadProgress(80);
-
-      // Trigger Direct .APK Download
-      const url = URL.createObjectURL(apkBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'BroomiesRider_v2.4_broms_vercel_app.apk';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      setDownloadProgress(100);
-      setTimeout(() => {
-        setIsDownloading(false);
-        setIsInstalled(true);
-      }, 400);
-    } catch (err) {
-      console.error('APK generation error:', err);
-      setIsDownloading(false);
-    }
-
-    // Trigger PWA install prompt if supported
+  const handleInstallPwa = async () => {
     if (deferredPrompt) {
       try {
         deferredPrompt.prompt();
@@ -89,33 +53,8 @@ export const InstallAndroidAppModal: React.FC<InstallAndroidAppModalProps> = ({
       } catch (e) {
         console.warn('PWA prompt handled');
       }
-    }
-  };
-
-  const handleDownloadSourceZip = async () => {
-    setIsDownloading(true);
-    setDownloadProgress(30);
-
-    try {
-      const zipBlob = await generateAndroidAppBundle('https://broms.vercel.app');
-      setDownloadProgress(90);
-
-      const url = URL.createObjectURL(zipBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'BroomiesRider_AndroidStudio_Project_broms_vercel_app.zip';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      setDownloadProgress(100);
-      setTimeout(() => {
-        setIsDownloading(false);
-      }, 400);
-    } catch (err) {
-      console.error('ZIP generation error:', err);
-      setIsDownloading(false);
+    } else {
+      alert('To install in Chrome: Tap the 3-dots menu (⋮) at top right and select "Install app" or "Add to Home screen".');
     }
   };
 
@@ -133,14 +72,14 @@ export const InstallAndroidAppModal: React.FC<InstallAndroidAppModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base sm:text-lg font-black text-white">
-                  Broomies Rider Android App
+                  Install Broomies Rider App
                 </h2>
                 <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-500/40">
-                  v2.4 APK
+                  PWA Web App
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Standalone Mobile Application for Delivery Partners
+                Install as a native application directly via Chrome
               </p>
             </div>
           </div>
@@ -154,7 +93,7 @@ export const InstallAndroidAppModal: React.FC<InstallAndroidAppModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 space-y-5 text-left">
+        <div className="p-5 space-y-4 text-left">
           {partnerName && (
             <div className="p-3.5 rounded-2xl bg-purple-950/40 border border-purple-800/60 flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-purple-600/30 text-purple-300 flex items-center justify-center font-bold">
@@ -172,7 +111,7 @@ export const InstallAndroidAppModal: React.FC<InstallAndroidAppModalProps> = ({
             <div className="flex items-center gap-2.5">
               <Globe className="w-5 h-5 text-indigo-400 shrink-0" />
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">Live Vercel Web App Applet</div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">Target Web App Endpoint</div>
                 <div className="text-xs font-mono font-extrabold text-emerald-400">https://broms.vercel.app</div>
               </div>
             </div>
@@ -182,45 +121,19 @@ export const InstallAndroidAppModal: React.FC<InstallAndroidAppModalProps> = ({
               rel="noreferrer"
               className="p-2 rounded-xl bg-indigo-900/80 hover:bg-indigo-800 text-indigo-200 text-xs font-bold flex items-center gap-1 transition"
             >
-              <span>Visit</span>
+              <span>Open</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>
 
-          {/* App Features List */}
-          <div className="space-y-2.5 bg-[#080a18] p-4 rounded-2xl border border-indigo-950">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
-              ✨ Key Android App Package Features:
-            </span>
-
-            <div className="grid grid-cols-1 gap-2 text-xs">
-              <div className="flex items-center gap-2.5 text-slate-200">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span><strong>Full Android Studio Source Code</strong> (MainActivity.java + AndroidManifest.xml)</span>
-              </div>
-              <div className="flex items-center gap-2.5 text-slate-200">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span><strong>Target Endpoint:</strong> Pre-configured for <code>broms.vercel.app</code></span>
-              </div>
-              <div className="flex items-center gap-2.5 text-slate-200">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span><strong>Full Permissions:</strong> GPS Live Tracking, Camera, File Upload, Offline Sync</span>
-              </div>
-              <div className="flex items-center gap-2.5 text-slate-200">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span><strong>PWA 1-Tap Home Screen Install</strong> directly on Android Chrome</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Chrome PWA Service Worker Status Indicator */}
+          {/* Chrome PWA Status Indicator */}
           <div className="p-3 rounded-2xl bg-emerald-950/40 border border-emerald-800/60 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
-              <span className="text-xs font-bold text-emerald-300">PWA & Service Worker Status:</span>
+              <span className="text-xs font-bold text-emerald-300">Chrome PWA Integration:</span>
             </div>
             <span className="text-[11px] font-mono font-extrabold bg-emerald-900/80 text-emerald-200 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
-              ACTIVE & READY FOR CHROME
+              {isInstalled ? 'INSTALLED ON DEVICE' : 'READY TO INSTALL'}
             </span>
           </div>
 
@@ -229,10 +142,7 @@ export const InstallAndroidAppModal: React.FC<InstallAndroidAppModalProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-xs font-black uppercase tracking-wider text-purple-300 flex items-center gap-1.5">
                 <Globe className="w-4 h-4 text-purple-400" />
-                How to Install in Google Chrome:
-              </span>
-              <span className="text-[10px] bg-purple-950 text-purple-300 font-bold px-2 py-0.5 rounded-md border border-purple-800">
-                Android & Desktop
+                How to Install directly in Google Chrome:
               </span>
             </div>
 
@@ -240,73 +150,52 @@ export const InstallAndroidAppModal: React.FC<InstallAndroidAppModalProps> = ({
               <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-[#111532] border border-indigo-950">
                 <span className="w-5 h-5 rounded-lg bg-emerald-600 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">1</span>
                 <div>
-                  <strong className="text-white">Open in Main Chrome Browser:</strong>
-                  <p className="text-[11px] text-slate-400">Open <code>https://broms.vercel.app</code> directly in Chrome (not inside another app's internal browser).</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-[#111532] border border-indigo-950">
-                <span className="w-5 h-5 rounded-lg bg-emerald-600 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">2</span>
-                <div>
                   <strong className="text-white">Android Mobile Chrome:</strong>
                   <p className="text-[11px] text-slate-400">Tap <strong>3 Dots Menu (⋮)</strong> at top-right &rarr; Select <strong>"Install App"</strong> or <strong>"Add to Home screen"</strong>.</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-[#111532] border border-indigo-950">
-                <span className="w-5 h-5 rounded-lg bg-emerald-600 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">3</span>
+                <span className="w-5 h-5 rounded-lg bg-emerald-600 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">2</span>
                 <div>
                   <strong className="text-white">Desktop Chrome:</strong>
-                  <p className="text-[11px] text-slate-400">Click the <strong>Install Icon (💻📲)</strong> in the right side of Chrome's URL bar next to the star icon.</p>
+                  <p className="text-[11px] text-slate-400">Click the <strong>Install Icon (💻📲)</strong> on the right side of Chrome's address bar.</p>
                 </div>
               </div>
             </div>
           </div>
 
-
-          {/* Download Progress Bar */}
-          {isDownloading && (
-            <div className="p-4 rounded-2xl bg-[#090d21] border border-emerald-500/50 space-y-2 animate-pulse">
-              <div className="flex items-center justify-between text-xs font-bold">
-                <span className="text-emerald-400 flex items-center gap-1.5">
-                  <Download className="w-4 h-4 animate-bounce" />
-                  Building & Downloading BroomiesRider_v2.4_broms_vercel_app.apk...
-                </span>
-                <span className="text-white font-mono">{downloadProgress}%</span>
+          {/* Key PWA App Features */}
+          <div className="space-y-2 bg-[#080a18] p-3.5 rounded-2xl border border-indigo-950 text-xs">
+            <span className="font-bold uppercase tracking-wider text-slate-400 block text-[11px]">
+              ✨ Installed PWA Benefits:
+            </span>
+            <div className="grid grid-cols-1 gap-1.5 text-slate-200">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Runs full screen without browser address bar</span>
               </div>
-              <div className="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden p-0.5 border border-indigo-950">
-                <div
-                  className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-300"
-                  style={{ width: `${downloadProgress}%` }}
-                />
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Fast home screen icon launcher & live GPS tracking</span>
               </div>
             </div>
-          )}
+          </div>
 
           {/* Action Buttons */}
-          <div className="space-y-2.5 pt-2">
+          <div className="space-y-2 pt-1">
             <button
-              onClick={handleDownloadDirectApk}
-              disabled={isDownloading}
-              className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm shadow-xl shadow-emerald-950/60 flex items-center justify-center gap-2 transition active:scale-95 disabled:opacity-50"
+              onClick={handleInstallPwa}
+              className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm shadow-xl shadow-emerald-950/60 flex items-center justify-center gap-2 transition active:scale-95"
             >
-              <Download className="w-5 h-5 text-emerald-200 animate-pulse" />
+              <PlusCircle className="w-5 h-5 text-emerald-200" />
               <span>
-                {isDownloading
-                  ? 'Generating Direct APK File...'
+                {deferredPrompt
+                  ? '📲 Click Here to Install App Now'
                   : isInstalled
-                  ? '📲 Re-Download Direct APK File (broms.vercel.app)'
-                  : '📲 Download Direct APK File (BroomiesRider_v2.4.apk)'}
+                  ? '✅ App Installed on Home Screen'
+                  : '📲 Install App / Add to Home Screen'}
               </span>
-            </button>
-
-            <button
-              onClick={handleDownloadSourceZip}
-              disabled={isDownloading}
-              className="w-full py-2.5 px-4 rounded-xl bg-purple-950/70 hover:bg-purple-900/80 text-purple-200 border border-purple-800/60 font-bold text-xs flex items-center justify-center gap-2 transition active:scale-95 disabled:opacity-50"
-            >
-              <FileCode className="w-4 h-4 text-purple-400" />
-              <span>📦 Download Android Studio Source Code Project (.ZIP)</span>
             </button>
 
             <button
@@ -321,3 +210,4 @@ export const InstallAndroidAppModal: React.FC<InstallAndroidAppModalProps> = ({
     </div>
   );
 };
+
