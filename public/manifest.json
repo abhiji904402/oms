@@ -1,4 +1,5 @@
 {
+  "id": "com.broomies.rider.app",
   "short_name": "Broomies Rider",
   "name": "Broomies Rider - Delivery Application",
   "description": "Official Delivery & Rider Application for Broomies Bakery OMS with Live GPS Order Tracking.",
@@ -17,9 +18,19 @@
     }
   ],
   "start_url": "/",
+  "scope": "/",
   "background_color": "#0a0c1b",
   "theme_color": "#7c3aed",
   "display": "standalone",
   "orientation": "portrait",
-  "categories": ["business", "food", "logistics"]
+  "prefer_related_applications": false,
+  "categories": ["business", "food", "logistics"],
+  "shortcuts": [
+    {
+      "name": "Live Orders",
+      "short_name": "Orders",
+      "description": "View today's assigned delivery orders",
+      "url": "/?tab=delivery"
+    }
+  ]
 }

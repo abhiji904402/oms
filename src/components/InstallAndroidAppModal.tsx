@@ -213,33 +213,56 @@ export const InstallAndroidAppModal: React.FC<InstallAndroidAppModalProps> = ({
             </div>
           </div>
 
-          {/* Installation Steps */}
-          <div className="space-y-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
-              📲 2 Easy Installation Options:
+          {/* Chrome PWA Service Worker Status Indicator */}
+          <div className="p-3 rounded-2xl bg-emerald-950/40 border border-emerald-800/60 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
+              <span className="text-xs font-bold text-emerald-300">PWA & Service Worker Status:</span>
+            </div>
+            <span className="text-[11px] font-mono font-extrabold bg-emerald-900/80 text-emerald-200 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+              ACTIVE & READY FOR CHROME
             </span>
+          </div>
+
+          {/* Chrome Specific Install Guide */}
+          <div className="p-4 rounded-2xl bg-[#090c21] border border-indigo-900/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase tracking-wider text-purple-300 flex items-center gap-1.5">
+                <Globe className="w-4 h-4 text-purple-400" />
+                How to Install in Google Chrome:
+              </span>
+              <span className="text-[10px] bg-purple-950 text-purple-300 font-bold px-2 py-0.5 rounded-md border border-purple-800">
+                Android & Desktop
+              </span>
+            </div>
+
             <div className="space-y-2 text-xs text-slate-300">
-              <div className="p-3 rounded-xl bg-[#111530] border border-indigo-900/60 space-y-1">
-                <div className="font-extrabold text-emerald-400 flex items-center gap-1.5">
-                  <Zap className="w-4 h-4" />
-                  Option 1: Direct Mobile Install (Recommended for Rider Phone)
+              <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-[#111532] border border-indigo-950">
+                <span className="w-5 h-5 rounded-lg bg-emerald-600 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">1</span>
+                <div>
+                  <strong className="text-white">Open in Main Chrome Browser:</strong>
+                  <p className="text-[11px] text-slate-400">Open <code>https://broms.vercel.app</code> directly in Chrome (not inside another app's internal browser).</p>
                 </div>
-                <p className="text-slate-300 text-[11px] leading-relaxed">
-                  Open <strong>https://broms.vercel.app</strong> on Android Chrome, tap menu (3 dots top-right) and select <strong>"Add to Home Screen" / "Install App"</strong>. It installs as a full native app instantly!
-                </p>
               </div>
 
-              <div className="p-3 rounded-xl bg-[#111530] border border-indigo-900/60 space-y-1">
-                <div className="font-extrabold text-purple-400 flex items-center gap-1.5">
-                  <FileCode className="w-4 h-4" />
-                  Option 2: Download Full Android Studio APK WebApp Project (.ZIP)
+              <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-[#111532] border border-indigo-950">
+                <span className="w-5 h-5 rounded-lg bg-emerald-600 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">2</span>
+                <div>
+                  <strong className="text-white">Android Mobile Chrome:</strong>
+                  <p className="text-[11px] text-slate-400">Tap <strong>3 Dots Menu (⋮)</strong> at top-right &rarr; Select <strong>"Install App"</strong> or <strong>"Add to Home screen"</strong>.</p>
                 </div>
-                <p className="text-slate-300 text-[11px] leading-relaxed">
-                  Click the button below to download the complete Android Studio WebView code package (containing <code>MainActivity.java</code>, <code>AndroidManifest.xml</code>, <code>build.gradle</code>) targeted at <strong>broms.vercel.app</strong>!
-                </p>
+              </div>
+
+              <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-[#111532] border border-indigo-950">
+                <span className="w-5 h-5 rounded-lg bg-emerald-600 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">3</span>
+                <div>
+                  <strong className="text-white">Desktop Chrome:</strong>
+                  <p className="text-[11px] text-slate-400">Click the <strong>Install Icon (💻📲)</strong> in the right side of Chrome's URL bar next to the star icon.</p>
+                </div>
               </div>
             </div>
           </div>
+
 
           {/* Download Progress Bar */}
           {isDownloading && (
