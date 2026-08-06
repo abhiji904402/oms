@@ -26,6 +26,8 @@ export const InstallAndroidAppModal: React.FC<InstallAndroidAppModalProps> = ({
 }) => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -43,9 +45,6 @@ export const InstallAndroidAppModal: React.FC<InstallAndroidAppModalProps> = ({
   }, []);
 
   if (!isOpen) return null;
-
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
 
   const downloadApkFile = () => {
     setIsDownloading(true);
