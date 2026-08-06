@@ -8,7 +8,15 @@ export const INITIAL_DELIVERY_PARTNERS: DeliveryPartner[] = [
     login_id: 'rahul.rider',
     status: 'available',
     total_deliveries: 142,
-    vehicle: 'Honda Activa (HR 51 AB 1234)'
+    vehicle: 'Honda Activa (HR 51 AB 1234)',
+    is_tracking_active: true,
+    location: {
+      lat: 28.4682,
+      lng: 77.3060,
+      address: 'Sector 31 Market, Faridabad',
+      speed: 0,
+      updated_at: new Date().toISOString()
+    }
   },
   {
     id: 'dp-2',
@@ -17,7 +25,15 @@ export const INITIAL_DELIVERY_PARTNERS: DeliveryPartner[] = [
     login_id: 'ajay.rider',
     status: 'available',
     total_deliveries: 98,
-    vehicle: 'TVS Jupiter (HR 51 XY 5678)'
+    vehicle: 'TVS Jupiter (HR 51 XY 5678)',
+    is_tracking_active: true,
+    location: {
+      lat: 28.4520,
+      lng: 77.3180,
+      address: 'En route Sector 35 Main Rd',
+      speed: 22,
+      updated_at: new Date().toISOString()
+    }
   },
   {
     id: 'dp-3',
@@ -26,7 +42,15 @@ export const INITIAL_DELIVERY_PARTNERS: DeliveryPartner[] = [
     login_id: 'vikram.rider',
     status: 'on_delivery',
     total_deliveries: 215,
-    vehicle: 'Hero Splendor (HR 51 C 9988)'
+    vehicle: 'Hero Splendor (HR 51 C 9988)',
+    is_tracking_active: true,
+    location: {
+      lat: 28.4350,
+      lng: 77.3320,
+      address: 'Near Sector 42 Bakery Hub',
+      speed: 35,
+      updated_at: new Date().toISOString()
+    }
   },
   {
     id: 'dp-4',
@@ -35,7 +59,15 @@ export const INITIAL_DELIVERY_PARTNERS: DeliveryPartner[] = [
     login_id: 'sonu.rider',
     status: 'available',
     total_deliveries: 176,
-    vehicle: 'Bajaj Pulsar (HR 51 D 4433)'
+    vehicle: 'Bajaj Pulsar (HR 51 D 4433)',
+    is_tracking_active: true,
+    location: {
+      lat: 28.4120,
+      lng: 77.3450,
+      address: 'Sector 88 Outlet Parking',
+      speed: 0,
+      updated_at: new Date().toISOString()
+    }
   }
 ];
 

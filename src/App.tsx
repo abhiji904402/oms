@@ -21,6 +21,13 @@ function OMSAppContent() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [isOpenMobile, setIsOpenMobile] = useState<boolean>(false);
 
+  // Automatically enforce delivery page for rider role
+  React.useEffect(() => {
+    if (session.role === 'delivery' && activeTab !== 'delivery') {
+      setActiveTab('delivery');
+    }
+  }, [session.role, activeTab]);
+
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isThermalModalOpen, setIsThermalModalOpen] = useState(false);

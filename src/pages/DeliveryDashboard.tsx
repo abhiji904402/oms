@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useOMS } from '../lib/store';
 import { Order, DeliveryPartner } from '../types';
 import { compressImage } from '../lib/imageCompressor';
@@ -33,7 +33,8 @@ export const DeliveryDashboard: React.FC = () => {
     switchRole,
     markDelivered,
     addPartner,
-    deletePartner
+    deletePartner,
+    updatePartnerLocation
   } = useOMS();
 
   const safeOrders = orders || [];
@@ -43,9 +44,62 @@ export const DeliveryDashboard: React.FC = () => {
     session.deliveryPartnerId || safePartners[0]?.id || ''
   );
 
+  const activePartner = useMemo(() => {
+    return safePartners.find((p) => p.id === activePartnerId) || safePartners[0];
+  }, [safePartners, activePartnerId]);
+
+  // Live GPS Geolocation Tracker Effect
+  useEffect(() => {
+    if (!activePartner?.id || !navigator.geolocation) return;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        if (updatePartnerLocation && activePartner.id) {
+          updatePartnerLocation(activePartner.id, {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            speed: pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 24,
+            address: `Live GPS (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)})`
+          });
+        }
+      },
+      (err) => {
+        console.warn('Geolocation access fallback:', err.message);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+    );
+
+    return () => {
+      if (watchId && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [activePartner?.id, updatePartnerLocation]);
+
   const [activeTab, setActiveTab] = useState<'queue' | 'delivered_products' | 'manage_partners'>('queue');
   const [partnerFilter, setPartnerFilter] = useState<string>('ALL');
   const [deliveredSearch, setDeliveredSearch] = useState<string>('');
+  const [queueSearch, setQueueSearch] = useState<string>('');
+  const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
+  const [queueScope, setQueueScope] = useState<'all' | 'my'>('all');
+  const [selectedOutlet, setSelectedOutlet] = useState<string>('ALL');
+  const [selectedDateScope, setSelectedDateScope] = useState<'today' | 'all'>('today');
+
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const mainOutlets = ['ALL', 'Sector 31', 'Sector 35', 'Sector 42', 'Sector 88'];
+
+  // Search Autocomplete Suggestions for Riders
+  const searchSuggestions = useMemo(() => {
+    if (!queueSearch.trim()) return [];
+    const q = queueSearch.toLowerCase().trim().replace('#', '');
+    return safeOrders.filter((o) => {
+      const matchNum = o.order_number.toString().includes(q);
+      const matchCust = (o.customer_name || '').toLowerCase().includes(q);
+      const matchPhone = (o.mobile_number || '').includes(q);
+      const matchItem = (o.item_type || '').toLowerCase().includes(q);
+      return matchNum || matchCust || matchPhone || matchItem;
+    }).slice(0, 6);
+  }, [safeOrders, queueSearch]);
 
   // Selected order modal for delivery execution
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -64,28 +118,54 @@ export const DeliveryDashboard: React.FC = () => {
   const [deletingPartnerId, setDeletingPartnerId] = useState<string | null>(null);
   const [createPartnerError, setCreatePartnerError] = useState<string | null>(null);
 
-  const activePartner = useMemo(() => {
-    return safePartners.find((p) => p.id === activePartnerId) || safePartners[0];
-  }, [safePartners, activePartnerId]);
+  const isConfirmedDelivered = (o: Order) => o.status === 'delivered' && !o.delivery_confirmation_pending;
 
-  // Active deliveries for currently selected partner persona
-  const assignedOrders = useMemo(() => {
-    return safeOrders.filter(
-      (o) =>
-        o.delivery_partner === activePartner?.name ||
-        (o.status === 'out_for_delivery' && !o.delivery_partner)
-    );
-  }, [safeOrders, activePartner]);
-
+  // Active deliveries filterable by outlet, date (today vs all), scope & search
   const activeDeliveries = useMemo(() => {
-    const list = assignedOrders.filter((o) => o.status === 'out_for_delivery' || o.status === 'processing');
+    const list = safeOrders.filter((o) => {
+      if (isConfirmedDelivered(o) || o.status === 'cancelled') return false;
+
+      // 1. Outlet Tab Filter
+      if (selectedOutlet !== 'ALL' && o.outlet !== selectedOutlet) {
+        return false;
+      }
+
+      // 2. Date Scope Filter (Today vs All Dates)
+      if (selectedDateScope === 'today') {
+        const isToday = o.delivery_date === todayStr || o.order_date === todayStr;
+        if (!isToday) return false;
+      }
+
+      // 3. Scope filter: My Assigned vs All Deliveries
+      if (queueScope === 'my' && activePartner?.name) {
+        if (o.delivery_partner !== activePartner.name) return false;
+      }
+
+      // 4. Search filter by Order ID, Customer Name, Mobile, Item, Outlet, Address
+      if (queueSearch.trim()) {
+        const q = queueSearch.toLowerCase().trim();
+        const matchNum = o.order_number.toString().includes(q);
+        const matchCust = (o.customer_name || '').toLowerCase().includes(q);
+        const matchPhone = (o.mobile_number || '').includes(q);
+        const matchItem = (o.item_type || '').toLowerCase().includes(q);
+        const matchOutlet = (o.outlet || '').toLowerCase().includes(q);
+        const matchAddr = (o.address || '').toLowerCase().includes(q);
+        const matchRider = (o.delivery_partner || '').toLowerCase().includes(q);
+        if (!matchNum && !matchCust && !matchPhone && !matchItem && !matchOutlet && !matchAddr && !matchRider) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
     return sortOrdersByDeliveryPriority(list);
-  }, [assignedOrders]);
+  }, [safeOrders, selectedOutlet, selectedDateScope, todayStr, queueScope, queueSearch, activePartner]);
 
   // Delivered Products filterable by Partner
   const deliveredOrders = useMemo(() => {
     return safeOrders.filter((o) => {
-      if (o.status !== 'delivered') return false;
+      if (!isConfirmedDelivered(o)) return false;
 
       // Filter by Partner
       if (partnerFilter !== 'ALL') {
@@ -132,12 +212,7 @@ export const DeliveryDashboard: React.FC = () => {
     e.preventDefault();
     if (!selectedOrder) return;
 
-    if (!proofPhotoUrl) {
-      setErrorMessage('Please attach a proof of delivery photo.');
-      return;
-    }
-
-    const result = markDelivered(selectedOrder.id, proofPhotoUrl, otpInput);
+    const result = markDelivered(selectedOrder.id, proofPhotoUrl || undefined, otpInput);
     if (!result.success) {
       setErrorMessage(result.message);
       return;
@@ -239,7 +314,9 @@ export const DeliveryDashboard: React.FC = () => {
               onChange={(e) => {
                 const val = e.target.value;
                 setActivePartnerId(val);
-                switchRole('delivery', undefined, val);
+                if (session.role === 'delivery') {
+                  switchRole('delivery', undefined, val);
+                }
               }}
               className="bg-transparent font-bold text-slate-200 focus:outline-none cursor-pointer pr-2"
             >
@@ -251,13 +328,15 @@ export const DeliveryDashboard: React.FC = () => {
             </select>
           </div>
 
-          <button
-            onClick={() => setIsAddPartnerOpen(true)}
-            className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-950/50 flex items-center gap-1.5 transition active:scale-95"
-          >
-            <Plus className="w-4 h-4" />
-            + Add Delivery Partner
-          </button>
+          {session.role !== 'delivery' && (
+            <button
+              onClick={() => setIsAddPartnerOpen(true)}
+              className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-950/50 flex items-center gap-1.5 transition active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              + Add Delivery Partner
+            </button>
+          )}
         </div>
       </div>
 
@@ -287,28 +366,205 @@ export const DeliveryDashboard: React.FC = () => {
           <span>Delivered Products History</span>
         </button>
 
-        <button
-          onClick={() => setActiveTab('manage_partners')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition ${
-            activeTab === 'manage_partners'
-              ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/50'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <UserCheck className="w-4 h-4 text-purple-300" />
-          <span>Manage Partners ({safePartners.length})</span>
-        </button>
+        {session.role !== 'delivery' && (
+          <button
+            onClick={() => setActiveTab('manage_partners')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition ${
+              activeTab === 'manage_partners'
+                ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/50'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <UserCheck className="w-4 h-4 text-purple-300" />
+            <span>Manage Partners ({safePartners.length})</span>
+          </button>
+        )}
       </div>
 
       {/* TAB 1: ACTIVE DELIVERY QUEUE */}
       {activeTab === 'queue' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-extrabold text-white flex items-center gap-2">
-              <Truck className="w-5 h-5 text-emerald-400" />
-              Active Delivery Queue for {activePartner?.name}
-            </h2>
-            <span className="text-xs text-slate-400">Tap order to verify OTP & photo proof</span>
+          {/* Outlet Tabs & Today's Orders Filter Bar */}
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#0a0c16] border border-indigo-950 shadow-lg">
+            {/* Outlet Tabs */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider pr-1 hidden sm:inline">Outlet:</span>
+              {mainOutlets.map((outlet) => {
+                const count = safeOrders.filter((o) => {
+                  if (isConfirmedDelivered(o) || o.status === 'cancelled') return false;
+                  if (outlet !== 'ALL' && o.outlet !== outlet) return false;
+                  if (selectedDateScope === 'today') {
+                    const isToday = o.delivery_date === todayStr || o.order_date === todayStr;
+                    if (!isToday) return false;
+                  }
+                  if (queueScope === 'my' && activePartner?.name && o.delivery_partner !== activePartner.name) return false;
+                  return true;
+                }).length;
+
+                return (
+                  <button
+                    key={outlet}
+                    onClick={() => setSelectedOutlet(outlet)}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
+                      selectedOutlet === outlet
+                        ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/50'
+                        : 'bg-[#12162a] text-slate-300 hover:text-white border border-indigo-900/50'
+                    }`}
+                  >
+                    <span>{outlet === 'ALL' ? '🏪 All Outlets' : `📍 ${outlet}`}</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                      selectedOutlet === outlet ? 'bg-white/20 text-white font-extrabold' : 'bg-slate-800 text-slate-400'
+                    }`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Date Scope Selector */}
+            <div className="flex items-center bg-[#12162a] border border-indigo-900/60 p-1 rounded-xl text-xs shrink-0 self-start md:self-center">
+              <button
+                onClick={() => setSelectedDateScope('today')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 ${
+                  selectedDateScope === 'today'
+                    ? 'bg-emerald-600 text-white shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5 text-emerald-300" />
+                <span>Today's Orders</span>
+              </button>
+              <button
+                onClick={() => setSelectedDateScope('all')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition ${
+                  selectedDateScope === 'all'
+                    ? 'bg-purple-600 text-white shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <span>All Dates</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 rounded-2xl bg-[#0d1020] border border-indigo-950 shadow-xl">
+            <div>
+              <h2 className="text-base font-extrabold text-white flex items-center gap-2">
+                <Truck className="w-5 h-5 text-emerald-400" />
+                Active Deliveries Queue ({activeDeliveries.length})
+                {selectedOutlet !== 'ALL' && (
+                  <span className="text-xs font-normal text-purple-300 bg-purple-950/60 border border-purple-800/60 px-2 py-0.5 rounded-lg">
+                    {selectedOutlet}
+                  </span>
+                )}
+                {selectedDateScope === 'today' && (
+                  <span className="text-xs font-normal text-emerald-300 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-lg">
+                    Today
+                  </span>
+                )}
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Search order ID or customer name to verify & mark delivered with photo or OTP
+              </p>
+            </div>
+
+            {/* Queue Scope Selector & Search Bar */}
+            <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full md:w-auto">
+              {/* Scope Switcher */}
+              <div className="flex items-center bg-[#12162a] border border-indigo-900/60 p-1 rounded-xl text-xs w-full sm:w-auto">
+                <button
+                  onClick={() => setQueueScope('all')}
+                  className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg font-bold transition ${
+                    queueScope === 'all'
+                      ? 'bg-purple-600 text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  All Deliveries
+                </button>
+                <button
+                  onClick={() => setQueueScope('my')}
+                  className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg font-bold transition ${
+                    queueScope === 'my'
+                      ? 'bg-purple-600 text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  My Assigned ({activePartner?.name})
+                </button>
+              </div>
+
+              {/* Search Bar with Autocomplete Suggestions */}
+              <div className="relative w-full sm:w-72">
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search Order ID #, Customer, Phone..."
+                  value={queueSearch}
+                  onFocus={() => setShowSuggestions(true)}
+                  onChange={(e) => {
+                    setQueueSearch(e.target.value);
+                    setShowSuggestions(true);
+                  }}
+                  className="w-full pl-9 pr-8 py-2 bg-[#12162a] border border-indigo-800/80 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-purple-500 font-sans shadow-inner"
+                />
+                {queueSearch && (
+                  <button
+                    onClick={() => {
+                      setQueueSearch('');
+                      setShowSuggestions(false);
+                    }}
+                    className="absolute right-2.5 top-2.5 text-slate-500 hover:text-white"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+                {/* Live Order ID Suggestions Dropdown */}
+                {showSuggestions && searchSuggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-2 bg-[#0d1020] border border-indigo-700/80 rounded-2xl shadow-2xl z-50 overflow-hidden divide-y divide-indigo-950/80 animate-fade-in">
+                    <div className="px-3 py-2 bg-[#141830] text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-purple-300">
+                        <Sparkles className="w-3 h-3 text-purple-400" /> Matching Suggestions ({searchSuggestions.length})
+                      </span>
+                      <span className="text-slate-500 text-[9px]">Click to Open Card</span>
+                    </div>
+                    {searchSuggestions.map((ord) => (
+                      <div
+                        key={ord.id}
+                        onClick={() => {
+                          setSelectedOrder(ord);
+                          setQueueSearch(`#${ord.order_number}`);
+                          setShowSuggestions(false);
+                        }}
+                        className="p-3 hover:bg-purple-900/40 cursor-pointer transition flex items-center justify-between gap-2 group"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-extrabold text-white flex items-center gap-2">
+                            <span className="text-emerald-400 font-mono">#{ord.order_number}</span>
+                            <span className="text-slate-200 font-bold truncate">{ord.customer_name}</span>
+                          </div>
+                          <div className="text-[11px] text-slate-400 mt-0.5 truncate">
+                            📍 {ord.outlet} • 🍰 {ord.item_type} • 📱 {ord.mobile_number}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                            ord.status === 'delivered'
+                              ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                              : 'bg-purple-950 text-purple-300 border border-purple-800'
+                          }`}>
+                            {ord.status}
+                          </span>
+                          <div className="text-[10px] text-slate-300 font-bold mt-0.5">₹{ord.total_amount}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {activeDeliveries.length === 0 ? (
@@ -642,7 +898,9 @@ export const DeliveryDashboard: React.FC = () => {
                     <button
                       onClick={() => {
                         setActivePartnerId(partner.id);
-                        switchRole('delivery', undefined, partner.id);
+                        if (session.role === 'delivery') {
+                          switchRole('delivery', undefined, partner.id);
+                        }
                         setActiveTab('queue');
                       }}
                       className="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition"
@@ -807,30 +1065,42 @@ export const DeliveryDashboard: React.FC = () => {
             )}
 
             <form onSubmit={handleConfirmDelivery} className="space-y-4 text-xs">
-              {/* Customer OTP Entry */}
-              {selectedOrder.otp && (
-                <div className="p-3 rounded-xl bg-[#070913] border border-indigo-950 space-y-1.5">
-                  <label className="block text-slate-300 font-bold flex items-center gap-1.5">
-                    <Key className="w-3.5 h-3.5 text-amber-400" /> Customer OTP Code
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter 4-digit OTP provided by customer"
-                    value={otpInput}
-                    onChange={(e) => setOtpInput(e.target.value)}
-                    className="w-full bg-[#121524] border border-indigo-900/60 rounded-lg px-3 py-2 text-white font-mono text-center tracking-widest font-extrabold text-sm focus:border-emerald-500"
-                  />
-                  <div className="text-[10px] text-slate-500">
-                    Hint for demo: Customer OTP is <strong className="text-amber-400 font-mono">{selectedOrder.otp}</strong>
-                  </div>
-                </div>
-              )}
+              <div className="p-3 bg-purple-950/40 border border-purple-800/60 rounded-xl text-purple-200 text-xs leading-relaxed font-medium">
+                ⚡ <strong>Delivery Requirement:</strong> Deliver mark karne ke liye customer se <strong>OTP maangein</strong> YA delivery ki <strong>Photo click karein</strong>.
+              </div>
 
-              {/* Photo Proof Upload */}
-              <div className="p-3 rounded-xl bg-[#070913] border border-indigo-950 space-y-2">
-                <label className="block text-slate-300 font-bold flex items-center gap-1.5">
-                  <Camera className="w-3.5 h-3.5 text-emerald-400" />
-                  Attach Proof Photo (Package at door / with customer)
+              {/* Option A: Customer OTP Entry */}
+              <div className="p-3.5 rounded-xl bg-[#070913] border border-indigo-950 space-y-2">
+                <label className="block text-slate-200 font-bold flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-amber-400">
+                    <Key className="w-4 h-4" /> Option 1: Customer OTP Code
+                  </span>
+                  <span className="text-[10px] text-amber-300 font-normal bg-amber-950 px-2 py-0.5 rounded border border-amber-800/50">
+                    Required if no photo
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter 4-digit OTP provided by customer"
+                  value={otpInput}
+                  onChange={(e) => setOtpInput(e.target.value)}
+                  className="w-full bg-[#121524] border border-indigo-900/80 rounded-xl px-3 py-2.5 text-white font-mono text-center tracking-widest font-extrabold text-base focus:border-emerald-500"
+                />
+                <div className="text-[10px] text-slate-400 flex items-center justify-between pt-0.5">
+                  <span>Customer OTP Hint:</span>
+                  <strong className="text-amber-400 font-mono text-xs">{selectedOrder.otp || '1234'}</strong>
+                </div>
+              </div>
+
+              {/* Option B: Photo Proof Upload */}
+              <div className="p-3.5 rounded-xl bg-[#070913] border border-indigo-950 space-y-2">
+                <label className="block text-slate-200 font-bold flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-emerald-400">
+                    <Camera className="w-4 h-4" /> Option 2: Delivery Photo Proof
+                  </span>
+                  <span className="text-[10px] text-emerald-300 font-normal bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800/50">
+                    Required if no OTP
+                  </span>
                 </label>
 
                 <input

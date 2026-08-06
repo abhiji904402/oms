@@ -56,8 +56,17 @@ export interface Order {
   advance_bill_number?: string;
   final_bill_number?: string;
   rider_delivered?: boolean;
+  delivery_confirmation_pending?: boolean;
   otp?: string;
   created_at: string;
+  updated_at: string;
+}
+
+export interface DeliveryPartnerLocation {
+  lat: number;
+  lng: number;
+  address?: string;
+  speed?: number;
   updated_at: string;
 }
 
@@ -71,6 +80,8 @@ export interface DeliveryPartner {
   total_deliveries: number;
   vehicle?: string;
   avatar?: string;
+  location?: DeliveryPartnerLocation;
+  is_tracking_active?: boolean;
 }
 
 export interface Alert {

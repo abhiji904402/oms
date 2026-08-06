@@ -46,6 +46,45 @@ export const Header: React.FC<HeaderProps> = ({
   const outlets = ['ALL', 'Sector 31', 'Sector 35', 'Sector 42', 'Sector 88'];
   const statuses = ['ALL', 'pending', 'processing', 'out_for_delivery', 'delivered', 'on_hold', 'cancelled'];
 
+  // Dynamically filter orders based on current top header filters (outlet, status, search, date)
+  const filteredHeaderOrders = React.useMemo(() => {
+    return orders.filter((o) => {
+      // 1. Outlet Filter
+      const activeOutlet = session.role === 'outlet' ? session.outlet : selectedOutletFilter;
+      if (activeOutlet && activeOutlet !== 'ALL') {
+        if (o.outlet !== activeOutlet) return false;
+      }
+
+      // 2. Status Filter
+      if (selectedStatusFilter && selectedStatusFilter !== 'ALL') {
+        if (o.status !== selectedStatusFilter) return false;
+      }
+
+      // 3. Search Query Filter
+      if (searchQuery && searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchNum = o.order_number.toString().includes(q);
+        const matchCust = (o.customer_name || '').toLowerCase().includes(q);
+        const matchPhone = (o.mobile_number || '').includes(q);
+        const matchItem = (o.item_type || '').toLowerCase().includes(q);
+        const matchOutlet = (o.outlet || '').toLowerCase().includes(q);
+        const matchAddr = (o.address || '').toLowerCase().includes(q);
+        const matchRider = (o.delivery_partner || '').toLowerCase().includes(q);
+        if (!matchNum && !matchCust && !matchPhone && !matchItem && !matchOutlet && !matchAddr && !matchRider) {
+          return false;
+        }
+      }
+
+      // 4. Date Range Filter
+      if (dateRangeFilter) {
+        if (dateRangeFilter.startDate && o.order_date < dateRangeFilter.startDate) return false;
+        if (dateRangeFilter.endDate && o.order_date > dateRangeFilter.endDate) return false;
+      }
+
+      return true;
+    });
+  }, [orders, session, selectedOutletFilter, selectedStatusFilter, searchQuery, dateRangeFilter]);
+
   return (
     <header className="sticky top-0 z-30 bg-slate-900/95 border-b border-slate-800/80 backdrop-blur-md px-4 py-3">
       {/* Toast Banner for Real-time Notifications */}
@@ -142,22 +181,36 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Export CSV */}
           <button
-            onClick={() => exportToCSV(orders)}
-            title="Export CSV"
+            onClick={() => {
+              if (filteredHeaderOrders.length === 0) {
+                alert('No matching orders found to export for the current filters.');
+                return;
+              }
+              exportToCSV(filteredHeaderOrders, `Filtered_Orders_${new Date().toISOString().split('T')[0]}.csv`);
+            }}
+            title={`Export ${filteredHeaderOrders.length} Filtered CSV Records`}
             className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-slate-300 transition text-xs font-medium flex items-center gap-1.5"
           >
             <Download className="w-4 h-4 text-emerald-400" />
-            <span className="hidden xl:inline">Export CSV</span>
+            <span className="hidden xl:inline">Export CSV ({filteredHeaderOrders.length})</span>
           </button>
 
           {/* Export PDF Report */}
           <button
-            onClick={() => printPDFReport(orders)}
-            title="Generate PDF Summary"
+            onClick={() => {
+              if (filteredHeaderOrders.length === 0) {
+                alert('No matching orders found to export for the current filters.');
+                return;
+              }
+              const outletName = session.role === 'outlet' ? session.outlet : selectedOutletFilter;
+              const subtitle = outletName !== 'ALL' ? ` - ${outletName}` : '';
+              printPDFReport(filteredHeaderOrders, `Broomies Bakery - Filtered Orders Report${subtitle} (${filteredHeaderOrders.length} Records)`);
+            }}
+            title={`Generate PDF Summary for ${filteredHeaderOrders.length} Filtered Records`}
             className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-slate-300 transition text-xs font-medium flex items-center gap-1.5"
           >
             <FileText className="w-4 h-4 text-amber-400" />
-            <span className="hidden xl:inline">PDF Report</span>
+            <span className="hidden xl:inline">PDF Report ({filteredHeaderOrders.length})</span>
           </button>
 
           {/* Logout Button */}

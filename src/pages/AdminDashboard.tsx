@@ -22,8 +22,10 @@ import {
   CreditCard,
   Ban,
   Clock3,
-  Key
+  Key,
+  Radio
 } from 'lucide-react';
+import { RiderLocationMapModal } from '../components/RiderLocationMapModal';
 
 interface AdminDashboardProps {
   onOpenAddModal: () => void;
@@ -50,6 +52,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 }) => {
   const {
     orders = [],
+    partners = [],
+    updatePartnerLocation,
     searchQuery,
     selectedOutletFilter,
     selectedStatusFilter,
@@ -63,6 +67,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [activeTab, setActiveTab] = useState<DashboardTab>('today');
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
+  const [isMapOpen, setIsMapOpen] = useState<boolean>(false);
+
+  // Simulation handler to move riders slightly on map
+  const handleSimulateMovement = () => {
+    (partners || []).forEach((p) => {
+      const currentLoc = p.location || { lat: 28.4520, lng: 77.3180, address: 'Faridabad Sector' };
+      const deltaLat = (Math.random() - 0.5) * 0.008;
+      const deltaLng = (Math.random() - 0.5) * 0.008;
+      const newSpeed = Math.floor(15 + Math.random() * 30);
+
+      updatePartnerLocation(p.id, {
+        lat: currentLoc.lat + deltaLat,
+        lng: currentLoc.lng + deltaLng,
+        speed: newSpeed,
+        address: currentLoc.address || 'En route delivery'
+      });
+    });
+  };
 
   // Dates
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
@@ -72,6 +94,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     return d.toISOString().split('T')[0];
   }, []);
 
+  // Helper: check if order is fully delivered & confirmed by outlet/admin
+  const isFullyDelivered = (o: Order) => o.status === 'delivered' && !o.delivery_confirmation_pending;
+
   // Compute Badge Counts for all 8 Tabs
   const counts = useMemo(() => {
     return {
@@ -79,7 +104,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         (o) =>
           (o.delivery_date === todayStr || o.order_date === todayStr) &&
           o.status !== 'cancelled' &&
-          o.status !== 'delivered' &&
+          !isFullyDelivered(o) &&
           o.status !== 'missed' &&
           o.delivery_date >= todayStr
       ).length,
@@ -87,15 +112,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         (o) =>
           (o.delivery_date === tomorrowStr || o.order_date === tomorrowStr) &&
           o.status !== 'cancelled' &&
-          o.status !== 'delivered'
+          !isFullyDelivered(o)
       ).length,
       future: safeOrders.filter(
         (o) =>
           (o.delivery_date > tomorrowStr || o.order_date > tomorrowStr) &&
           o.status !== 'cancelled' &&
-          o.status !== 'delivered'
+          !isFullyDelivered(o)
       ).length,
-      delivered_history: safeOrders.filter((o) => o.status === 'delivered').length,
+      delivered_history: safeOrders.filter((o) => isFullyDelivered(o)).length,
       pending_payment: safeOrders.filter(
         (o) => o.payment_type === 'due' || (o.remaining_balance && o.remaining_balance > 0) || o.payment_status === 'pending' || o.payment_status === 'due'
       ).length,
@@ -103,7 +128,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       missed: safeOrders.filter(
         (o) =>
           o.status === 'missed' ||
-          (o.delivery_date < todayStr && o.status !== 'delivered' && o.status !== 'cancelled')
+          (o.delivery_date < todayStr && !isFullyDelivered(o) && o.status !== 'cancelled')
       ).length,
       on_hold: safeOrders.filter((o) => o.status === 'on_hold').length
     };
@@ -150,7 +175,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         return (
           isToday &&
           o.status !== 'cancelled' &&
-          o.status !== 'delivered' &&
+          !isFullyDelivered(o) &&
           o.status !== 'missed' &&
           o.delivery_date >= todayStr
         );
@@ -158,16 +183,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       if (activeTab === 'tomorrow') {
         const isTomorrow = o.delivery_date === tomorrowStr || o.order_date === tomorrowStr;
-        return isTomorrow && o.status !== 'cancelled' && o.status !== 'delivered';
+        return isTomorrow && o.status !== 'cancelled' && !isFullyDelivered(o);
       }
 
       if (activeTab === 'future') {
         const isFuture = o.delivery_date > tomorrowStr || o.order_date > tomorrowStr;
-        return isFuture && o.status !== 'cancelled' && o.status !== 'delivered';
+        return isFuture && o.status !== 'cancelled' && !isFullyDelivered(o);
       }
 
       if (activeTab === 'delivered_history') {
-        return o.status === 'delivered';
+        return isFullyDelivered(o);
       }
 
       if (activeTab === 'pending_payment') {
@@ -481,6 +506,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         order={editingOrder}
         isOpen={!!editingOrder}
         onClose={() => setEditingOrder(null)}
+      />
+
+      {/* Rider Live Location Map Modal */}
+      <RiderLocationMapModal
+        isOpen={isMapOpen}
+        onClose={() => setIsMapOpen(false)}
+        partners={partners}
+        onSimulateMovement={handleSimulateMovement}
       />
     </div>
   );

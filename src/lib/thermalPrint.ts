@@ -4,12 +4,6 @@ import { formatTo12Hour } from './timeUtils';
 export function printThermalReceipts(orders: Order[]) {
   if (!orders || orders.length === 0) return;
 
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) {
-    alert('Please allow popups to enable thermal receipt printing.');
-    return;
-  }
-
   const receiptHtml = orders
     .map(
       (o) => {
@@ -178,17 +172,65 @@ export function printThermalReceipts(orders: Order[]) {
         </style>
       </head>
       <body>
-        <div class="no-print" style="margin-bottom: 15px; text-align: center; background: #f1f5f9; padding: 10px; border-radius: 6px; font-family: sans-serif;">
-          <p style="margin: 0 0 8px 0; font-size: 13px; color: #334155;">Ready to print ${orders.length} receipt(s) on 80mm thermal paper.</p>
-          <button onclick="window.print()" style="background: #10b981; color: white; border: none; padding: 8px 16px; font-weight: bold; border-radius: 4px; cursor: pointer;">
-            🖨️ Print to Thermal Printer
-          </button>
-        </div>
         ${receiptHtml}
       </body>
     </html>
   `;
 
-  printWindow.document.write(html);
-  printWindow.document.close();
+  // Try opening a popup window first
+  const printWindow = window.open('', '_blank', 'width=450,height=700');
+  if (printWindow) {
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+
+    const doPrint = () => {
+      try {
+        printWindow.focus();
+        printWindow.print();
+      } catch (e) {
+        console.error('Window print error:', e);
+      }
+    };
+
+    setTimeout(doPrint, 300);
+    return;
+  }
+
+  // Fallback to off-screen iframe if popups are blocked or disabled
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'absolute';
+  iframe.style.left = '-9999px';
+  iframe.style.top = '0';
+  iframe.style.width = '80mm';
+  iframe.style.height = '1000px';
+  iframe.style.border = '0';
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow?.document || iframe.contentDocument;
+  if (!doc) {
+    alert('Unable to initialize printing.');
+    return;
+  }
+
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  const triggerDirectPrint = () => {
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch (e) {
+      console.error('Direct thermal print error:', e);
+    } finally {
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+      }, 2000);
+    }
+  };
+
+  setTimeout(triggerDirectPrint, 300);
 }

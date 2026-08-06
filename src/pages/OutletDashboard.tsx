@@ -12,7 +12,6 @@ import {
   Clock,
   CheckCircle,
   ChefHat,
-  Download,
   Search,
   X,
   Package,
@@ -64,6 +63,8 @@ export const OutletDashboard: React.FC = () => {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
 
+  const isFullyDelivered = (o: Order) => o.status === 'delivered' && !o.delivery_confirmation_pending;
+
   // Outlet Metrics per outlet
   const outletMetrics = useMemo(() => {
     return OUTLETS.map((outletName) => {
@@ -71,9 +72,9 @@ export const OutletDashboard: React.FC = () => {
       const totalCount = outletOrders.length;
       const totalRevenue = outletOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
       const pendingCount = outletOrders.filter(
-        (o) => o.status === 'pending' || o.status === 'processing' || o.status === 'out_for_delivery'
+        (o) => o.status === 'pending' || o.status === 'processing' || o.status === 'out_for_delivery' || o.delivery_confirmation_pending
       ).length;
-      const doneCount = outletOrders.filter((o) => o.status === 'delivered').length;
+      const doneCount = outletOrders.filter((o) => isFullyDelivered(o)).length;
 
       return {
         name: outletName,
@@ -90,9 +91,9 @@ export const OutletDashboard: React.FC = () => {
     const totalCount = safeOrders.length;
     const totalRevenue = safeOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
     const pendingCount = safeOrders.filter(
-      (o) => o.status === 'pending' || o.status === 'processing' || o.status === 'out_for_delivery'
+      (o) => o.status === 'pending' || o.status === 'processing' || o.status === 'out_for_delivery' || o.delivery_confirmation_pending
     ).length;
-    const doneCount = safeOrders.filter((o) => o.status === 'delivered').length;
+    const doneCount = safeOrders.filter((o) => isFullyDelivered(o)).length;
 
     return { totalCount, totalRevenue, pendingCount, doneCount };
   }, [safeOrders]);
@@ -194,100 +195,7 @@ export const OutletDashboard: React.FC = () => {
     setSearchQuery('');
   };
 
-  // Export Filtered Orders as CSV
-  const handleDownloadCSVReport = () => {
-    if (filteredOrders.length === 0) {
-      alert('No order data available to export for the selected filters.');
-      return;
-    }
 
-    const headers = [
-      'Order Number',
-      'Outlet',
-      'Order Date',
-      'Order Time',
-      'Delivery Date',
-      'Expected Delivery Time',
-      'Customer Name',
-      'Mobile Number',
-      'Item Description',
-      'Quantity',
-      'Delivery Type',
-      'Total Amount (INR)',
-      'Advance Amount (INR)',
-      'Remaining Balance (INR)',
-      'Payment Status',
-      'Order Status',
-      'Delivery Partner',
-      'Address',
-      'Remarks'
-    ];
-
-    const rows = filteredOrders.map((o) => {
-      const remaining = o.remaining_balance ?? 0;
-      const payStatus = remaining === 0 ? 'PAID FULL' : o.advance_amount > 0 ? 'PARTIAL' : 'PAY ON DELIVERY';
-
-      return [
-        `"${o.order_number}"`,
-        `"${o.outlet}"`,
-        `"${o.order_date}"`,
-        `"${o.order_time || ''}"`,
-        `"${o.delivery_date}"`,
-        `"${o.delivery_time_expected || ''}"`,
-        `"${o.customer_name.replace(/"/g, '""')}"`,
-        `"${o.mobile_number}"`,
-        `"${o.item_type.replace(/"/g, '""')}"`,
-        o.quantity,
-        `"${o.delivery_type}"`,
-        o.total_amount,
-        o.advance_amount,
-        o.remaining_balance,
-        `"${payStatus}"`,
-        `"${o.status.toUpperCase()}"`,
-        `"${(o.delivery_partner || '').replace(/"/g, '""')}"`,
-        `"${(o.address || '').replace(/"/g, '""')}"`,
-        `"${(o.remarks || '').replace(/"/g, '""')}"`
-      ].join(',');
-    });
-
-    // Summary Calculations
-    const totalRev = filteredOrders.reduce((acc, o) => acc + o.total_amount, 0);
-    const totalAdv = filteredOrders.reduce((acc, o) => acc + o.advance_amount, 0);
-    const totalRem = filteredOrders.reduce((acc, o) => acc + o.remaining_balance, 0);
-
-    const summaryRow = [
-      '"TOTAL SUMMARY"',
-      `"${selectedOutlet}"`,
-      '""',
-      '""',
-      '""',
-      '""',
-      '""',
-      '""',
-      `"Total Orders: ${filteredOrders.length}"`,
-      '""',
-      '""',
-      totalRev,
-      totalAdv,
-      totalRem,
-      '""',
-      '""',
-      '""',
-      '""',
-      '""'
-    ].join(',');
-
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows, '', summaryRow].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    const dateStr = new Date().toISOString().split('T')[0];
-    const outletClean = selectedOutlet === 'ALL' ? 'All_Outlets' : selectedOutlet.replace(/\s+/g, '_');
-    link.setAttribute('download', `Outlet_Report_${outletClean}_${dateStr}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
@@ -303,16 +211,8 @@ export const OutletDashboard: React.FC = () => {
           </p>
         </div>
 
-        {/* Export CSV Report Button & Switcher */}
+        {/* View Mode Switcher */}
         <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            onClick={handleDownloadCSVReport}
-            className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-950/50 flex items-center gap-2 transition active:scale-95"
-          >
-            <Download className="w-4 h-4" />
-            Download Outlet CSV Report
-          </button>
-
           {/* View Mode Toggle */}
           <div className="flex items-center bg-[#0d1020] border border-indigo-950 p-1 rounded-xl">
             <button
@@ -369,7 +269,6 @@ export const OutletDashboard: React.FC = () => {
             <div
               onClick={() => {
                 setSelectedOutlet('ALL');
-                switchRole('outlet', undefined);
               }}
               className={`p-4 rounded-2xl border transition cursor-pointer space-y-2 shadow-xl ${
                 selectedOutlet === 'ALL'
@@ -417,7 +316,6 @@ export const OutletDashboard: React.FC = () => {
                     return;
                   }
                   setSelectedOutlet(met.name);
-                  switchRole('outlet', met.name as OutletName);
                 }}
                 className={`p-4 rounded-2xl border transition space-y-2 shadow-xl ${
                   isDisabledForUser

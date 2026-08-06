@@ -38,6 +38,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order, compact = false, on
     session,
     updateOrderStatus,
     deleteOrder,
+    confirmRiderDelivery,
     partners,
     selectedOrderIds,
     toggleOrderSelection
@@ -235,6 +236,22 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order, compact = false, on
                 Cancel
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Rider Delivery Confirmation Banner */}
+        {order.rider_delivered && order.delivery_confirmation_pending && (
+          <div className="p-3 bg-emerald-950 border-b border-emerald-500/80 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs shadow-inner" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 text-emerald-300 font-extrabold">
+              <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
+              <span>Delivered by {order.delivered_by || order.delivery_partner || 'Delivery Partner'} (Pending Confirmation)</span>
+            </div>
+            <button
+              onClick={() => confirmRiderDelivery(order.id)}
+              className="w-full sm:w-auto px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black tracking-wider uppercase shadow-lg transition active:scale-95"
+            >
+              CONFIRM DELIVERY
+            </button>
           </div>
         )}
 

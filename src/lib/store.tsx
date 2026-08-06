@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { Order, DeliveryPartner, SheetConfig, SyncLog, UserSession, Role, OutletName, OrderStatus, Alert } from '../types';
+import { Order, DeliveryPartner, DeliveryPartnerLocation, SheetConfig, SyncLog, UserSession, Role, OutletName, OrderStatus, Alert } from '../types';
 import { INITIAL_ORDERS, INITIAL_DELIVERY_PARTNERS, INITIAL_SHEET_CONFIG, INITIAL_ALERTS } from '../data/mockData';
 
 export interface AuthPasswords {
@@ -36,7 +36,8 @@ interface OMSContextType {
   updateOrder: (id: string, updates: Partial<Order>) => void;
   deleteOrder: (id: string) => void;
   updateOrderStatus: (id: string, status: OrderStatus, deliveryPartner?: string) => void;
-  markDelivered: (id: string, photoUrl: string, otpInput?: string) => { success: boolean; message: string };
+  markDelivered: (id: string, photoUrl?: string, otpInput?: string) => { success: boolean; message: string };
+  confirmRiderDelivery: (id: string) => void;
 
   // Delivery Partners
   partners: DeliveryPartner[];
@@ -103,23 +104,6 @@ const DEFAULT_PASSWORDS: AuthPasswords = {
 
 export const OMSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Auth & Session state
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY_AUTH);
-    return saved === 'true';
-  });
-
-  const [authPasswords, setAuthPasswords] = useState<AuthPasswords>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY_PASSWORDS);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Failed to parse saved passwords', e);
-      }
-    }
-    return DEFAULT_PASSWORDS;
-  });
-
   const [session, setSessionState] = useState<UserSession>(() => {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY_SESSION);
     if (saved) {
@@ -134,6 +118,27 @@ export const OMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       name: 'Broomies Central Admin',
       role: 'admin'
     };
+  });
+
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY_AUTH);
+    if (saved === null) {
+      const sessionSaved = localStorage.getItem(LOCAL_STORAGE_KEY_SESSION);
+      return !!sessionSaved;
+    }
+    return saved === 'true';
+  });
+
+  const [authPasswords, setAuthPasswords] = useState<AuthPasswords>(() => {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY_PASSWORDS);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse saved passwords', e);
+      }
+    }
+    return DEFAULT_PASSWORDS;
   });
 
   // Orders State
@@ -223,10 +228,14 @@ export const OMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const login = useCallback((userSession: UserSession) => {
     setSessionState(userSession);
     setIsAuthenticated(true);
+    localStorage.setItem(LOCAL_STORAGE_KEY_AUTH, 'true');
+    localStorage.setItem(LOCAL_STORAGE_KEY_SESSION, JSON.stringify(userSession));
   }, []);
 
   const logout = useCallback(() => {
     setIsAuthenticated(false);
+    localStorage.setItem(LOCAL_STORAGE_KEY_AUTH, 'false');
+    localStorage.removeItem(LOCAL_STORAGE_KEY_SESSION);
   }, []);
 
   const updateAdminPassword = useCallback((newPass: string) => {
@@ -510,30 +519,40 @@ export const OMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   }, [session.name, showNotification, pushToSheet]);
 
-  const markDelivered = useCallback((id: string, photoUrl: string, otpInput?: string) => {
+  const markDelivered = useCallback((id: string, photoUrl?: string, otpInput?: string) => {
     const targetOrder = orders.find((o) => o.id === id);
     if (!targetOrder) {
       return { success: false, message: 'Order not found.' };
     }
 
-    if (targetOrder.otp && otpInput && targetOrder.otp.trim() !== otpInput.trim()) {
-      return { success: false, message: 'Invalid OTP code! Please verify with customer.' };
+    const hasPhoto = Boolean(photoUrl && photoUrl.trim().length > 0);
+    const hasOtp = Boolean(otpInput && otpInput.trim().length > 0);
+
+    if (!hasPhoto && !hasOtp) {
+      return { success: false, message: 'Deliver mark karne ke liye Photo click karein YA Customer OTP enter karein!' };
+    }
+
+    if (hasOtp && targetOrder.otp) {
+      if (targetOrder.otp.trim() !== otpInput!.trim()) {
+        return { success: false, message: 'Invalid OTP code! Customer se sahi 4-digit OTP mangein.' };
+      }
     }
 
     const now = new Date().toISOString();
     const updatedOrder: Order = {
       ...targetOrder,
       status: 'delivered',
-      delivery_photo_url: photoUrl,
+      delivery_photo_url: photoUrl || targetOrder.delivery_photo_url || '',
       advance_amount: targetOrder.total_amount,
       remaining_balance: 0,
       due_amount: 0,
       payment_type: 'full',
       actual_delivery_time: now,
-      delivered_by: session.name || targetOrder.delivery_partner || 'Rider',
+      delivered_by: session.name || targetOrder.delivery_partner || 'Delivery Partner',
       payment_changed_by: session.name || 'Rider',
       payment_changed_at: now,
       rider_delivered: true,
+      delivery_confirmation_pending: true,
       updated_at: now
     };
 
@@ -555,9 +574,45 @@ export const OMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       );
     }
 
-    showNotification(`🚀 Order #${targetOrder.order_number} successfully delivered & verified!`);
-    return { success: true, message: 'Delivered successfully!' };
+    showNotification(`🚀 Order #${targetOrder.order_number} delivered by rider! Waiting for Outlet confirmation.`);
+    return { success: true, message: 'Delivered marked! Waiting for Outlet/Admin confirmation.' };
   }, [orders, session.name, session.deliveryPartnerId, showNotification, pushToSheet]);
+
+  const confirmRiderDelivery = useCallback((id: string) => {
+    setOrders((prev) =>
+      prev.map((ord) => {
+        if (ord.id === id) {
+          const updated: Order = {
+            ...ord,
+            delivery_confirmation_pending: false,
+            updated_at: new Date().toISOString()
+          };
+          showNotification(`✅ Order #${ord.order_number} delivery confirmed by Outlet!`);
+          pushToSheet(updated, 'update');
+          return updated;
+        }
+        return ord;
+      })
+    );
+  }, [showNotification, pushToSheet]);
+
+  const updatePartnerLocation = useCallback((partnerId: string, location: Omit<DeliveryPartnerLocation, 'updated_at'>) => {
+    setPartners((prev) =>
+      prev.map((p) => {
+        if (p.id === partnerId) {
+          return {
+            ...p,
+            is_tracking_active: true,
+            location: {
+              ...location,
+              updated_at: new Date().toISOString()
+            }
+          };
+        }
+        return p;
+      })
+    );
+  }, []);
 
   const addPartner = useCallback((partnerData: Omit<DeliveryPartner, 'id' | 'total_deliveries'>) => {
     const newPartner: DeliveryPartner = {
@@ -624,10 +679,12 @@ export const OMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       deleteOrder,
       updateOrderStatus,
       markDelivered,
+      confirmRiderDelivery,
       partners: partners || [],
       addPartner,
       deletePartner,
       updatePartnerStatus,
+      updatePartnerLocation,
       alerts: alerts || [],
       triggerSheetSync: triggerGoogleSheetSync,
       sheetConfig,
@@ -665,6 +722,7 @@ export const OMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       deleteOrder,
       updateOrderStatus,
       markDelivered,
+      confirmRiderDelivery,
       partners,
       addPartner,
       deletePartner,
