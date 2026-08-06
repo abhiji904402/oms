@@ -54,7 +54,13 @@
       "name": "Live Orders",
       "short_name": "Orders",
       "description": "View today's assigned delivery orders",
-      "url": "/?tab=delivery"
+      "url": "/?tab=delivery",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }
