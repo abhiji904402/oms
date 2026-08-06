@@ -105,13 +105,23 @@ export const Header: React.FC<HeaderProps> = ({
 
       <div className="flex flex-col lg:flex-row items-center justify-between gap-3">
         {/* Left Section: Mobile Menu Toggle & Search Bar */}
-        <div className="flex items-center gap-3 w-full lg:w-auto flex-1">
+        <div className="flex items-center gap-2.5 w-full lg:w-auto flex-1">
           <button
             onClick={onToggleMobileMenu}
-            className="lg:hidden p-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
+            className="lg:hidden p-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition shrink-0"
           >
             <Menu className="w-5 h-5" />
           </button>
+
+          {/* Mobile Logo Badge */}
+          <div className="flex items-center gap-2 lg:hidden shrink-0">
+            <img
+              src="/app-icon.svg"
+              alt="Broomies Logo"
+              className="w-8 h-8 rounded-lg object-cover border border-purple-500/40 bg-slate-950 shadow-md"
+            />
+            <span className="font-extrabold text-xs text-white tracking-tight hidden sm:inline">BROOMIES</span>
+          </div>
 
           {/* Search Input */}
           <div className="relative flex-1 max-w-md">
