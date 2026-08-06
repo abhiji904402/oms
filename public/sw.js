@@ -1,11 +1,18 @@
 // Broomies Rider Progressive Web App (PWA) Service Worker
-const CACHE_NAME = 'broomies-rider-v2.6';
+const CACHE_NAME = 'broomies-rider-v2.8';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/app-icon.svg',
+  '/favicon.ico',
+  '/favicon-16x16.png',
+  '/favicon-32x32.png',
+  '/apple-touch-icon.png',
+  '/apple-touch-icon-precomposed.png',
   '/icon-192.png',
-  '/icon-512.png'
+  '/icon-512.png',
+  '/maskable-512.png'
 ];
 
 // Install Event
