@@ -46,7 +46,12 @@ export const LoginPage: React.FC = () => {
       {/* Main Container */}
       <div className="max-w-md w-full relative z-10 space-y-6">
         {/* Brand Header */}
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-3 flex flex-col items-center">
+          <img
+            src="/app-icon.svg"
+            alt="Broomies Logo"
+            className="w-16 h-16 rounded-2xl border-2 border-purple-500/50 shadow-2xl shadow-purple-950/80 bg-slate-900 object-cover"
+          />
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-950/80 border border-purple-800/60 text-purple-300 text-xs font-extrabold uppercase tracking-widest shadow-lg">
             <Sparkles className="w-3.5 h-3.5 text-purple-400" />
             Broomies Order Management
