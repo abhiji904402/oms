@@ -1,5 +1,5 @@
 // Broomies Rider Progressive Web App (PWA) Service Worker
-const CACHE_NAME = 'broomies-rider-v2.8';
+const CACHE_NAME = 'broomies-rider-v3.0';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

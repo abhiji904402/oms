@@ -295,15 +295,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </button>
           </div>
 
-          {onOpenPasswordModal && (
-            <button
-              onClick={onOpenPasswordModal}
-              className="px-3.5 py-2 rounded-xl bg-purple-950/80 hover:bg-purple-900/80 text-purple-200 border border-purple-700/60 font-bold text-xs shadow-lg flex items-center gap-1.5 transition active:scale-95"
-            >
-              <Key className="w-4 h-4 text-purple-400" />
-              <span>Password Settings</span>
-            </button>
-          )}
 
           <button
             onClick={onOpenAddModal}

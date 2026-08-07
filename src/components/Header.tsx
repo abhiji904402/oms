@@ -187,17 +187,6 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
 
-          {/* Admin Passwords Button */}
-          {session.role === 'admin' && onOpenPasswordModal && (
-            <button
-              onClick={onOpenPasswordModal}
-              title="Manage Passwords"
-              className="p-2 rounded-xl bg-purple-950/80 hover:bg-purple-900/80 border border-purple-700/60 text-purple-200 transition text-xs font-bold flex items-center gap-1.5 shadow-md"
-            >
-              <Key className="w-4 h-4 text-purple-400" />
-              <span className="hidden xl:inline">Passwords</span>
-            </button>
-          )}
 
           {/* Export CSV (Admin & Outlet only) */}
           {session.role !== 'delivery' && (
